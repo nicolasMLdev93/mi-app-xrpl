@@ -26,16 +26,12 @@ const Home = () => {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Estado local
+  // Captura el address y balance con useLocation, o si no existe, lo toma de sessionStorage (para recarga de página)
   const [address, setAddress] = useState<string>(
-    sessionStorage.getItem("xrplPublicKey") ||
-      (location.state as { address?: string })?.address ||
-      ""
+    (location.state as { address?: string })?.address ?? "", // o string
   );
   const [balance, setBalance] = useState<number>(
-    Number(sessionStorage.getItem("xrplBalance")) ||
-      (location.state as { balance?: number })?.balance ||
-      0
+    (location.state as { balance?: number })?.balance ?? 0, // o number
   );
 
   // Referencia para saber si el componente está montado
@@ -61,8 +57,11 @@ const Home = () => {
   // Al montar, refrescar balance
   useEffect(() => {
     isMounted.current = true;
-    refreshBalance();
+    const refreshTimeout = window.setTimeout(() => {
+      void refreshBalance();
+    }, 0);
     return () => {
+      window.clearTimeout(refreshTimeout);
       isMounted.current = false;
     };
   }, []); // Solo una vez
@@ -167,7 +166,11 @@ const Home = () => {
         onClick={() => setSidebarOpen(!sidebarOpen)}
         className="fixed top-4 left-4 z-50 p-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 text-white hover:bg-white/20 transition-colors md:hidden"
       >
-        {sidebarOpen ? <FiX className="text-xl" /> : <FiMenu className="text-xl" />}
+        {sidebarOpen ? (
+          <FiX className="text-xl" />
+        ) : (
+          <FiMenu className="text-xl" />
+        )}
       </button>
 
       <main
@@ -175,9 +178,7 @@ const Home = () => {
           sidebarOpen ? "md:ml-64" : "ml-0"
         } p-6 md:p-8 relative z-10 min-h-screen`}
       >
-        <div className="max-w-4xl mx-auto pt-12 md:pt-0">
-          {renderContent()}
-        </div>
+        <div className="max-w-4xl mx-auto pt-12 md:pt-0">{renderContent()}</div>
       </main>
     </div>
   );
