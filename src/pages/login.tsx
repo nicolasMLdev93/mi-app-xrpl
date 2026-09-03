@@ -1,34 +1,32 @@
 import { useState } from "react";
-import { Wallet } from "xrpl";
 import App_logo from "../icons/app_logo";
 import Login_btn from "../components/login_btn";
 import { useNavigate } from "react-router-dom";
+import test_getpublickey from "../components/test_getpublickey";
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [userAddress, setUserAddress] = useState<string | null>(null);
-  const navigate = useNavigate(); //
+  const [fundedBalance, setFundedBalance] = useState<number | null>(null);
+  const navigate = useNavigate();
 
   const handleConnect = async () => {
-    setIsLoading(true);
-    try {
-      const [address] = await Promise.all([
-        test_getpublickey(),
-        new Promise((resolve) => setTimeout(resolve, 2000)),
-      ]);
-      setUserAddress(address);
-      console.log("✅ Conectado, dirección:", address);
-      // Esperar un poco para que se complete el cierre de WebSocket antes de navegar
-      setTimeout(() => {
-        console.log("🔍 Intentando navegar a /home...");
-        window.location.href = "/home";
-      }, 100);
-    } catch (error) {
-      console.error("❌ Error al conectar:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  setIsLoading(true);
+  try {
+    const { address, funded } = await test_getpublickey();
+    setUserAddress(address);
+    setFundedBalance(funded.balance);
+    console.log("✅ Conectado, dirección:", address);
+    console.log("💰 Fondos de prueba:", funded.balance, "XRP");
+    setTimeout(() => {
+      navigate("/home", { state: { address, balance: funded.balance } });
+    }, 100);
+  } catch (error) {
+    console.error("❌ Error al conectar:", error);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white relative overflow-hidden px-4">
@@ -87,18 +85,3 @@ const Login = () => {
 };
 
 export default Login;
-
-async function test_getpublickey(): Promise<string> {
-  const wallet = Wallet.generate();
-  const address = wallet.address;
-  const seed = wallet.seed;
-
-  if (!seed) {
-    throw new Error("Wallet seed is unavailable");
-  }
-
-  sessionStorage.setItem("xrplPublicKey", address);
-  sessionStorage.setItem("xrplSeed", seed); 
-  console.log("✅ Dirección guardada:", address);
-  return address;
-}
