@@ -1,65 +1,91 @@
 import xrpl from "xrpl";
 
-const test_transaction = async (): Promise<void> => {
+type TransactionInput = {
+  address: string;
+  amount: string; // en XRP (se convierte a drops)
+  destination: string;
+  wallet: xrpl.Wallet;
+};
+
+type TransactionResult = {
+  success: boolean;
+  hash?: string;
+  error?: string;
+  code?: string; // código de error de la red (ej: "tecNO_DST")
+};
+
+const test_transaction = async ({
+  address,
+  amount,
+  destination,
+  wallet,
+}: TransactionInput): Promise<TransactionResult> => {
+  // Validar dirección destino
+  if (!xrpl.isValidAddress(destination)) {
+    return { success: false, error: "Dirección destino inválida" };
+  }
+
+  // Convertir XRP a drops (1 XRP = 1_000_000 drops)
+  const amountInDrops = String(Math.floor(Number(amount) * 1_000_000));
+  if (isNaN(Number(amountInDrops)) || Number(amountInDrops) <= 0) {
+    return { success: false, error: "Cantidad inválida" };
+  }
+
   const client = new xrpl.Client("wss://s.altnet.rippletest.net:51233");
-  const wallet = xrpl.Wallet.generate();
 
   try {
     await client.connect();
-    const fundedWallet = await client.fundWallet(wallet);
 
-    console.log("=== DATOS DE LA WALLET ===");
-    console.log("Dirección:", fundedWallet.wallet.classicAddress);
-    console.log("Saldo inicial:", fundedWallet.balance, "XRP");
-
+    // Preparar transacción
     const prepared = await client.autofill({
       TransactionType: "Payment",
-      Account: fundedWallet.wallet.classicAddress,
-      Amount: "1000000", // 1 XRP
-      Destination: "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe",
+      Account: address,
+      Amount: amountInDrops,
+      Destination: destination,
     });
 
-    const signed = fundedWallet.wallet.sign(prepared);
+    // Firmar
+    const signed = wallet.sign(prepared);
+
+    // Enviar y esperar validación
     const response = await client.submitAndWait(signed.tx_blob);
 
-    // Verificar resultado de forma más sencilla
-    const metadata = response.result.meta;
-    const txResult =
-      typeof metadata === "object" &&
-      metadata !== null &&
-      "TransactionResult" in metadata
-        ? metadata.TransactionResult
-        : undefined;
+    // Extraer resultado de forma robusta
+    const txResult = response.result?.engine_result || 
+                     response.result?.meta?.TransactionResult;
 
-    console.log("\n=== RESULTADO DE LA TRANSACCIÓN ===");
+    console.log("🔍 Respuesta completa:", JSON.stringify(response, null, 2));
+
     if (txResult === "tesSUCCESS") {
-      console.log("✅ Transacción exitosa");
-      console.log("Hash:", signed.hash);
+      console.log("✅ Transacción exitosa. Hash:", signed.hash);
+      return { success: true, hash: signed.hash };
     } else {
-      console.error("❌ Transacción fallida");
-      console.error("Código de error:", txResult);
-      console.error("Mensaje:", txResult || "Desconocido");
+      console.error("❌ Transacción fallida. Código:", txResult);
+      return { 
+        success: false, 
+        error: `Falló con código: ${txResult || "desconocido"}`, 
+        code: txResult 
+      };
     }
-
-    // Consultar el saldo final siempre
-    const balanceAfter = await client.getXrpBalance(
-      fundedWallet.wallet.classicAddress,
-    );
-    console.log("\n=== SALDO FINAL ===");
-    console.log("Saldo después de la transacción:", balanceAfter, "XRP");
-
-    if (txResult === "tesSUCCESS") {
-      const diferencia = Number(fundedWallet.balance) - Number(balanceAfter);
-      console.log(`💸 XRP gastados (aprox): ${diferencia.toFixed(6)} XRP`);
-    }
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error en la ejecución:", error);
+
+    // Intentar extraer código de error del objeto de error (si existe)
+    const errorCode = error?.data?.engine_result || 
+                      error?.result?.engine_result ||
+                      error?.message;
+
+    return { 
+      success: false, 
+      error: error.message || "Error desconocido", 
+      code: errorCode 
+    };
   } finally {
     try {
       await client.disconnect();
       console.log("🔌 Conexión cerrada.");
     } catch {
-      //
+      // ignorar
     }
   }
 };
