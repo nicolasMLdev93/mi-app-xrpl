@@ -1,18 +1,19 @@
-import { Route, Routes } from 'react-router-dom'
-import Login from './pages/login'
+import { Route, Routes } from 'react-router-dom';
+import Login from './pages/login';
+import Home from './pages/home';
+import ProtectedRoute from './components/protected_route';
 
 function App() {
-
-
   return (
     <Routes>
-        <Route path="/" element={<Login/>} />
-        {/*<Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/dex" element={<Dex />} />
-        <Route path="/history" element={<History />} />
-        <Route path="/settings" element={<Settings />} />*/}
-      </Routes>
-  )
+      {/* Ruta pública: Login */}
+      <Route path="/" element={<Login />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/home" element={<Home />} />
+        {/* Aquí puedes agregar más rutas protegidas, ej: /dashboard, /settings */}
+      </Route>
+    </Routes>
+  );
 }
 
-export default App
+export default App;

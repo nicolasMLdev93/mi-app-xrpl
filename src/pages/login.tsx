@@ -1,18 +1,33 @@
 import { useState } from "react";
+import { Wallet } from "xrpl";
 import App_logo from "../icons/app_logo";
 import Login_btn from "../components/login_btn";
+import { useNavigate } from "react-router-dom";
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [userAddress, setUserAddress] = useState<string | null>(null);
+  const navigate = useNavigate(); //
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     setIsLoading(true);
-    // Simulamos la conexión con la wallet (2 segundos)
-    setTimeout(() => {
+    try {
+      const [address] = await Promise.all([
+        test_getpublickey(),
+        new Promise((resolve) => setTimeout(resolve, 2000)),
+      ]);
+      setUserAddress(address);
+      console.log("✅ Conectado, dirección:", address);
+      // Esperar un poco para que se complete el cierre de WebSocket antes de navegar
+      setTimeout(() => {
+        console.log("🔍 Intentando navegar a /home...");
+        window.location.href = "/home";
+      }, 100);
+    } catch (error) {
+      console.error("❌ Error al conectar:", error);
+    } finally {
       setIsLoading(false);
-      // Aquí iría la lógica real de conexión con Xaman
-      console.log("Conectado a Xaman");
-    }, 2000);
+    }
   };
 
   return (
@@ -72,3 +87,18 @@ const Login = () => {
 };
 
 export default Login;
+
+async function test_getpublickey(): Promise<string> {
+  const wallet = Wallet.generate();
+  const address = wallet.address;
+  const seed = wallet.seed;
+
+  if (!seed) {
+    throw new Error("Wallet seed is unavailable");
+  }
+
+  sessionStorage.setItem("xrplPublicKey", address);
+  sessionStorage.setItem("xrplSeed", seed); 
+  console.log("✅ Dirección guardada:", address);
+  return address;
+}
