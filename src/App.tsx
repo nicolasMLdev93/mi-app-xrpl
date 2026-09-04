@@ -8,7 +8,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Login />} />
       <Route element={<ProtectedRoute />}>
-        <Route path="/home" element={<Home />} />
+        <Route path="/home" element={<Home />} />z
       </Route>
     </Routes>
   );
