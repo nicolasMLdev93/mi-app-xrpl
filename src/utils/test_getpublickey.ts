@@ -1,5 +1,6 @@
 import xrpl from "xrpl";
 import simulatedWallet from "../utils/simulated_wallet";
+import { XRPL_TESTNET } from "./config";
 
 type WalletInfo = {
   address: string;
@@ -7,9 +8,7 @@ type WalletInfo = {
 };
 
 const test_getpublickey = async (): Promise<WalletInfo> => {
-  const client = new xrpl.Client(
-    "wss://s.altnet.rippletest.net:51233"
-  );
+  const client = new xrpl.Client(XRPL_TESTNET);
 
   try {
     console.log("⏳ Conectando a Testnet...");
@@ -18,17 +17,26 @@ const test_getpublickey = async (): Promise<WalletInfo> => {
 
     console.log("✅ Conectado.");
 
-    // Generamos/conectamos la wallet simulada
+    // -----------------------------------------
+    // 1. Conectar wallet simulada
+    // -----------------------------------------
+
     const address = await simulatedWallet.connect();
 
     console.log("👛 Address:", address);
 
-    // Fondeamos la wallet con el faucet
+    // -----------------------------------------
+    // 2. Fondear XRP
+    // -----------------------------------------
+
     const balance = await simulatedWallet.fund(client);
 
-    console.log("💰 Balance:", balance, "XRP");
+    console.log("💰 XRP:", balance);
 
-    // Guardamos SOLO la dirección pública
+    // -----------------------------------------
+    // 3. Guardar dirección pública
+    // -----------------------------------------
+
     sessionStorage.setItem("xrplPublicKey", address);
 
     return {
@@ -38,13 +46,13 @@ const test_getpublickey = async (): Promise<WalletInfo> => {
   } catch (error) {
     console.error("❌ Error en test_getpublickey:", error);
 
-    throw new Error(
-      "No se pudo conectar la wallet simulada.",
-      { cause: error }
-    );
+    throw new Error("No se pudo conectar o configurar la wallet.", {
+      cause: error,
+    });
   } finally {
     if (client.isConnected()) {
       await client.disconnect();
+
       console.log("🔌 Desconectado de Testnet.");
     }
   }

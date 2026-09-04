@@ -1,7 +1,10 @@
 import xrpl from "xrpl";
+import { XRPL_TESTNET } from "./config";
+
+// funcionalidad de get_balance.ts → consultar XRP
 
 export const getBalance = async (address: string): Promise<number> => {
-  const client = new xrpl.Client("wss://s.altnet.rippletest.net:51233");
+  const client = new xrpl.Client(XRPL_TESTNET);
   try {
     await client.connect();
     const response = await client.request({

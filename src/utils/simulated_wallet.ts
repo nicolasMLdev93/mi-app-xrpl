@@ -1,12 +1,24 @@
 import xrpl from "xrpl";
 
+/*
+Funcionalidad de  la simulated_wallet.ts:
+- generar wallet
+- conectar
+- obtener address
+- obtener xrpl.Wallet
+- firmar transacciones
+- desconectar
+- pedir XRP al faucet
+*/
+
 class SimulatedWallet {
-  // La wallet vive solamente en memoria
+  // La wallet existe solamente en memoria
   private wallet: xrpl.Wallet | null = null;
 
   /**
    * Conecta la wallet simulada.
-   * Si todavía no existe, genera una nueva.
+   *
+   * Si todavía no existe, genera una nueva wallet XRPL.
    */
   async connect(): Promise<string> {
     if (!this.wallet) {
@@ -20,21 +32,33 @@ class SimulatedWallet {
   }
 
   /**
-   * Devuelve la dirección de la wallet conectada.
+   * Devuelve la dirección pública de la wallet.
    */
   getAddress(): string | null {
     return this.wallet?.classicAddress ?? null;
   }
 
   /**
-   * Fondea la wallet usando el faucet de XRPL Testnet.
+   * Devuelve la instancia real de xrpl.Wallet.
+   *
+   * Se utiliza para acceder a la wallet cuando necesitamos
+   * construir o consultar transacciones XRPL.
+   */
+  getWallet(): xrpl.Wallet | null {
+    return this.wallet;
+  }
+
+  /**
+   * Fondea la wallet utilizando el faucet de XRPL Testnet.
+   *
+   * Esto entrega XRP de Testnet.
    */
   async fund(client: xrpl.Client): Promise<number> {
     if (!this.wallet) {
       throw new Error("La wallet no está conectada.");
     }
 
-    console.log("💰 Solicitando fondos de Testnet...");
+    console.log("💰 Solicitando fondos de XRP Testnet...");
 
     const funded = await client.fundWallet(this.wallet);
 
@@ -48,13 +72,19 @@ class SimulatedWallet {
   }
 
   /**
-   * Firma una transacción.
+   * Firma cualquier transacción XRPL.
    *
-   * La seed nunca se guarda en sessionStorage
-   * ni en localStorage.
+   * Puede utilizarse para:
+   *
+   * - Payment
+   * - TrustSet
+   * - AccountSet
+   * - etc.
+   *
+   * La seed nunca se guarda en localStorage ni sessionStorage.
    */
   async signTransaction(
-    transaction: xrpl.Payment
+    transaction: xrpl.Transaction
   ): Promise<{
     tx_blob: string;
     hash: string;
@@ -75,7 +105,9 @@ class SimulatedWallet {
 
   /**
    * Desconecta la wallet.
-   * Al poner wallet = null, la wallet desaparece de memoria.
+   *
+   * Al eliminar la referencia, la wallet desaparece
+   * de la memoria de la aplicación.
    */
   async disconnect(): Promise<void> {
     this.wallet = null;
@@ -84,7 +116,7 @@ class SimulatedWallet {
   }
 }
 
-// Creamos una única instancia para toda la aplicación
+// Una única instancia para toda la aplicación
 const simulatedWallet = new SimulatedWallet();
 
 export default simulatedWallet;

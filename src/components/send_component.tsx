@@ -308,9 +308,37 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
           <button
             onClick={handleSend}
             disabled={isLoading || !address}
-            className="w-full py-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg font-medium text-white hover:opacity-90 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.98]"
+            className="w-full py-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg font-medium text-white hover:opacity-90 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.98]"
           >
-            {isLoading ? "Enviando..." : "Enviar"}
+            {isLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                {/* SPINNER */}
+                <svg
+                  className="w-5 h-5 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="9"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                  />
+
+                  <path
+                    className="opacity-90"
+                    fill="currentColor"
+                    d="M21 12a9 9 0 0 0-9-9v3a6 6 0 0 1 6 6h3z"
+                  />
+                </svg>
+
+                <span>Enviando...</span>
+              </span>
+            ) : (
+              "Enviar"
+            )}
           </button>
 
           {/* ERROR GENERAL */}

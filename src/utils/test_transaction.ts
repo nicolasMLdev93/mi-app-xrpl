@@ -1,4 +1,5 @@
 import xrpl from "xrpl";
+import { XRPL_TESTNET } from "./config";
 
 type TransactionInput = {
   address: string;
@@ -6,9 +7,7 @@ type TransactionInput = {
   destination: string;
 
   // Función que será proporcionada por la wallet externa
-  signTransaction: (
-    transaction: xrpl.Payment
-  ) => Promise<{
+  signTransaction: (transaction: xrpl.Payment) => Promise<{
     tx_blob: string;
     hash: string;
   }>;
@@ -27,7 +26,6 @@ const test_transaction = async ({
   destination,
   signTransaction,
 }: TransactionInput): Promise<TransactionResult> => {
-
   // Validar dirección destino
   if (!xrpl.isValidAddress(destination)) {
     return {
@@ -37,23 +35,16 @@ const test_transaction = async ({
   }
 
   // Convertir XRP a drops
-  const amountInDrops = String(
-    Math.floor(Number(amount) * 1_000_000)
-  );
+  const amountInDrops = String(Math.floor(Number(amount) * 1_000_000));
 
-  if (
-    isNaN(Number(amountInDrops)) ||
-    Number(amountInDrops) <= 0
-  ) {
+  if (isNaN(Number(amountInDrops)) || Number(amountInDrops) <= 0) {
     return {
       success: false,
       error: "Cantidad inválida",
     };
   }
 
-  const client = new xrpl.Client(
-    "wss://s.altnet.rippletest.net:51233"
-  );
+  const client = new xrpl.Client(XRPL_TESTNET);
 
   try {
     await client.connect();
@@ -81,36 +72,23 @@ const test_transaction = async ({
     console.log("✍️ Transacción firmada");
 
     // Enviar la transacción firmada a XRPL
-    const response = await client.submitAndWait(
-      signed.tx_blob
-    );
+    const response = await client.submitAndWait(signed.tx_blob);
 
     const meta = response.result?.meta;
 
     const txResult =
-      response.result?.engine_result ||
-      (
-        typeof meta === "object" &&
-        meta !== null &&
-        "TransactionResult" in meta
-          ? (
-              meta as {
-                TransactionResult?: string;
-              }
-            ).TransactionResult
-          : undefined
-      );
+      typeof meta === "object" && meta !== null && "TransactionResult" in meta
+        ? (
+            meta as {
+              TransactionResult?: string;
+            }
+          ).TransactionResult
+        : undefined;
 
-    console.log(
-      "🔍 Respuesta completa:",
-      JSON.stringify(response, null, 2)
-    );
+    console.log("🔍 Respuesta completa:", JSON.stringify(response, null, 2));
 
     if (txResult === "tesSUCCESS") {
-      console.log(
-        "✅ Transacción exitosa. Hash:",
-        signed.hash
-      );
+      console.log("✅ Transacción exitosa. Hash:", signed.hash);
 
       return {
         success: true,
@@ -118,24 +96,15 @@ const test_transaction = async ({
       };
     }
 
-    console.error(
-      "❌ Transacción fallida. Código:",
-      txResult
-    );
+    console.error("❌ Transacción fallida. Código:", txResult);
 
     return {
       success: false,
-      error: `Falló con código: ${
-        txResult || "desconocido"
-      }`,
+      error: `Falló con código: ${txResult || "desconocido"}`,
       code: txResult,
     };
-
   } catch (error: any) {
-    console.error(
-      "❌ Error en la ejecución:",
-      error
-    );
+    console.error("❌ Error en la ejecución:", error);
 
     const errorCode =
       error?.data?.engine_result ||
@@ -144,12 +113,9 @@ const test_transaction = async ({
 
     return {
       success: false,
-      error:
-        error?.message ||
-        "Error desconocido",
+      error: error?.message || "Error desconocido",
       code: errorCode,
     };
-
   } finally {
     try {
       await client.disconnect();
