@@ -3,11 +3,11 @@ import { XRPL_TESTNET } from "./config";
 
 type TransactionInput = {
   address: string;
-  amount: string; // en XRP
+  amount: string; // cantidad de XRP
   destination: string;
 
-  // Función que será proporcionada por la wallet externa
-  signTransaction: (transaction: xrpl.Payment) => Promise<{
+  // Función proporcionada por la wallet para firmar
+  signTransaction: (transaction: xrpl.Transaction) => Promise<{
     tx_blob: string;
     hash: string;
   }>;
@@ -26,7 +26,21 @@ const test_transaction = async ({
   destination,
   signTransaction,
 }: TransactionInput): Promise<TransactionResult> => {
-  // Validar dirección destino
+  // =========================================
+  // 1. VALIDAR DIRECCIÓN DEL EMISOR
+  // =========================================
+
+  if (!xrpl.isValidAddress(address)) {
+    return {
+      success: false,
+      error: "Dirección del emisor inválida",
+    };
+  }
+
+  // =========================================
+  // 2. VALIDAR DIRECCIÓN DESTINO
+  // =========================================
+
   if (!xrpl.isValidAddress(destination)) {
     return {
       success: false,
@@ -34,45 +48,109 @@ const test_transaction = async ({
     };
   }
 
-  // Convertir XRP a drops
-  const amountInDrops = String(Math.floor(Number(amount) * 1_000_000));
+  // =========================================
+  // 3. EVITAR ENVIAR A LA MISMA CUENTA
+  // =========================================
 
-  if (isNaN(Number(amountInDrops)) || Number(amountInDrops) <= 0) {
+  if (address === destination) {
     return {
       success: false,
-      error: "Cantidad inválida",
+      error: "La dirección destino no puede ser la misma que la del emisor",
     };
   }
+
+  // =========================================
+  // 4. VALIDAR CANTIDAD
+  // =========================================
+
+  const amountNumber = Number(amount);
+
+  if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
+    return {
+      success: false,
+      error: "Cantidad de XRP inválida",
+    };
+  }
+
+  // =========================================
+  // 5. CONVERTIR XRP A DROPS
+  // =========================================
+
+  const amountInDrops = String(Math.floor(amountNumber * 1_000_000));
+
+  if (Number(amountInDrops) <= 0) {
+    return {
+      success: false,
+      error: "Cantidad de XRP inválida",
+    };
+  }
+
+  console.log("💰 XRP:", amount);
+
+  console.log("💧 Drops:", amountInDrops);
+
+  // =========================================
+  // 6. CREAR CLIENTE XRPL
+  // =========================================
 
   const client = new xrpl.Client(XRPL_TESTNET);
 
   try {
+    console.log("⏳ Conectando a XRPL Testnet...");
+
     await client.connect();
 
-    // Preparar la transacción
-    const prepared = await client.autofill({
+    console.log("✅ Conectado a XRPL Testnet");
+
+    // =========================================
+    // 7. CREAR PAYMENT
+    // =========================================
+
+    const payment: xrpl.Payment = {
       TransactionType: "Payment",
+
       Account: address,
+
       Amount: amountInDrops,
+
       Destination: destination,
-    });
+    };
 
-    console.log("📦 Transacción preparada:", prepared);
+    console.log("📦 Payment XRP:", JSON.stringify(payment, null, 2));
 
-    /*
-     * IMPORTANTE:
-     *
-     * Acá NO usamos wallet.sign().
-     *
-     * La transacción se envía a la wallet externa
-     * para que el usuario la firme.
-     */
+    // =========================================
+    // 8. AUTOFILL
+    // =========================================
+
+    const prepared = await client.autofill(payment);
+
+    console.log("📦 Transacción preparada:", JSON.stringify(prepared, null, 2));
+
+    // =========================================
+    // 9. FIRMAR
+    // =========================================
+
+    console.log("✍️ Firmando transacción...");
+
     const signed = await signTransaction(prepared);
 
-    console.log("✍️ Transacción firmada");
+    console.log("✅ Transacción firmada");
 
-    // Enviar la transacción firmada a XRPL
+    console.log("🔐 Hash:", signed.hash);
+
+    // =========================================
+    // 10. ENVIAR A XRPL
+    // =========================================
+
+    console.log("📡 Enviando Payment a XRPL...");
+
     const response = await client.submitAndWait(signed.tx_blob);
+
+    console.log("🔍 Respuesta completa:", JSON.stringify(response, null, 2));
+
+    // =========================================
+    // 11. OBTENER RESULTADO
+    // =========================================
 
     const meta = response.result?.meta;
 
@@ -85,10 +163,26 @@ const test_transaction = async ({
           ).TransactionResult
         : undefined;
 
-    console.log("🔍 Respuesta completa:", JSON.stringify(response, null, 2));
+    console.log("📊 Resultado XRPL:", txResult);
+
+    // =========================================
+    // 12. TRANSACCIÓN EXITOSA
+    // =========================================
 
     if (txResult === "tesSUCCESS") {
-      console.log("✅ Transacción exitosa. Hash:", signed.hash);
+      console.log("=================================");
+
+      console.log("✅ XRP ENVIADO CORRECTAMENTE");
+
+      console.log("=================================");
+
+      console.log("💰 Cantidad:", amount, "XRP");
+
+      console.log("👛 Desde:", address);
+
+      console.log("👛 Hacia:", destination);
+
+      console.log("🔐 Hash:", signed.hash);
 
       return {
         success: true,
@@ -96,30 +190,56 @@ const test_transaction = async ({
       };
     }
 
-    console.error("❌ Transacción fallida. Código:", txResult);
+    // =========================================
+    // 13. ERROR
+    // =========================================
+
+    console.error("❌ Transacción fallida:", txResult);
+
+    // Fondos insuficientes
+    if (txResult === "tecUNFUNDED_PAYMENT") {
+      return {
+        success: false,
+        error: "Fondos insuficientes de XRP",
+        code: txResult,
+      };
+    }
 
     return {
       success: false,
+
       error: `Falló con código: ${txResult || "desconocido"}`,
+
       code: txResult,
     };
   } catch (error: any) {
+    // =========================================
+    // 14. ERROR GENERAL
+    // =========================================
+
     console.error("❌ Error en la ejecución:", error);
 
     const errorCode =
-      error?.data?.engine_result ||
-      error?.result?.engine_result ||
-      error?.message;
+      error?.data?.engine_result || error?.result?.engine_result || error?.code;
 
     return {
       success: false,
+
       error: error?.message || "Error desconocido",
+
       code: errorCode,
     };
   } finally {
+    // =========================================
+    // 15. CERRAR CONEXIÓN
+    // =========================================
+
     try {
-      await client.disconnect();
-      console.log("🔌 Conexión cerrada.");
+      if (client.isConnected()) {
+        await client.disconnect();
+
+        console.log("🔌 Conexión cerrada.");
+      }
     } catch {
       // Ignorar error al cerrar conexión
     }

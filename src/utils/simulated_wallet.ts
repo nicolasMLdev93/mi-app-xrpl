@@ -62,11 +62,7 @@ class SimulatedWallet {
 
     const funded = await client.fundWallet(this.wallet);
 
-    console.log(
-      "💰 Wallet fondeada:",
-      funded.balance,
-      "XRP"
-    );
+    console.log("💰 Wallet fondeada:", funded.balance, "XRP");
 
     return Number(funded.balance);
   }
@@ -83,9 +79,7 @@ class SimulatedWallet {
    *
    * La seed nunca se guarda en localStorage ni sessionStorage.
    */
-  async signTransaction(
-    transaction: xrpl.Transaction
-  ): Promise<{
+  async signTransaction(transaction: xrpl.Transaction): Promise<{
     tx_blob: string;
     hash: string;
   }> {

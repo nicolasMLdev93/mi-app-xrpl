@@ -1,6 +1,7 @@
 import { useState } from "react";
 import xrpl from "xrpl";
 import { jsPDF } from "jspdf";
+
 import test_transaction from "../utils/test_transaction";
 import simulatedWallet from "../utils/simulated_wallet";
 
@@ -34,19 +35,35 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
   const address = sessionStorage.getItem("xrplPublicKey");
 
   const handleSend = async () => {
+    // ================================
+    // VERIFICAR WALLET
+    // ================================
+
     if (!address) {
       setTxResult({
         success: false,
         error: "No hay una wallet conectada. Reconéctate.",
       });
+
       return;
     }
+
+    // ================================
+    // CERRAR ERRORES ANTERIORES
+    // ================================
+
+    setTxResult(null);
+    setShowAmountError(false);
+    setShowAddressError(false);
+    setShowInsufficientFunds(false);
 
     // ================================
     // VALIDAR DIRECCIÓN
     // ================================
 
-    if (!destination || !xrpl.isValidAddress(destination.trim())) {
+    const cleanDestination = destination.trim();
+
+    if (!cleanDestination || !xrpl.isValidAddress(cleanDestination)) {
       setShowAddressError(true);
       return;
     }
@@ -55,34 +72,52 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
     // VALIDAR CANTIDAD
     // ================================
 
-    if (!amount || Number(amount) <= 0) {
+    const numericAmount = Number(amount);
+
+    if (!amount || !Number.isFinite(numericAmount) || numericAmount <= 0) {
       setShowAmountError(true);
       return;
     }
 
     setIsLoading(true);
-    setTxResult(null);
 
     try {
+      // ================================
+      // REALIZAR TRANSACCIÓN XRP
+      // ================================
+
       const result = await test_transaction({
         address,
         amount,
-        destination: destination.trim(),
+        destination: cleanDestination,
 
         signTransaction: (transaction) =>
           simulatedWallet.signTransaction(transaction),
       });
 
+      // ================================
+      // FONDOS INSUFICIENTES
+      // ================================
+
       if (!result.success && result.error?.includes("tecUNFUNDED_PAYMENT")) {
         setShowInsufficientFunds(true);
+
         return;
       }
 
-      setTxResult({
-        success: result.success,
-        hash: result.hash,
-        error: result.error,
-      });
+      // ================================
+      // ERROR GENERAL
+      // ================================
+
+      if (!result.success) {
+        setTxResult({
+          success: false,
+          hash: result.hash,
+          error: result.error || "No se pudo completar la transacción.",
+        });
+
+        return;
+      }
 
       // ================================
       // TRANSACCIÓN EXITOSA
@@ -91,31 +126,38 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
       if (result.success && result.hash) {
         const transactionDate = new Date();
 
-        setSuccessData({
-          amount: amount,
-          destination: destination.trim(),
+        const newSuccessData = {
+          amount,
+          destination: cleanDestination,
           hash: result.hash,
           date: transactionDate.toLocaleString("es-UY"),
-        });
+        };
 
+        setSuccessData(newSuccessData);
         setShowSuccessPopup(true);
 
+        // Limpiar formulario
         setAmount("");
         setDestination("");
 
+        // ================================
+        // ACTUALIZAR BALANCE XRP
+        // ================================
+
         if (onBalanceUpdate) {
-          await onBalanceUpdate();
+          try {
+            await onBalanceUpdate();
+          } catch (balanceError) {
+            console.error(
+              "⚠️ La transacción fue exitosa, pero no se pudo actualizar el balance:",
+              balanceError,
+            );
+          }
         }
       }
-
-      // ================================
-      // FONDOS INSUFICIENTES
-      // ================================
-
-      if (!result.success && result.error?.includes("tecUNFUNDED_PAYMENT")) {
-        setShowInsufficientFunds(true);
-      }
     } catch (error: unknown) {
+      console.error("❌ Error en la ejecución:", error);
+
       const errorMessage =
         error instanceof Error ? error.message : "Error desconocido";
 
@@ -125,12 +167,17 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
 
       if (errorMessage.includes("tecUNFUNDED_PAYMENT")) {
         setShowInsufficientFunds(true);
-      } else {
-        setTxResult({
-          success: false,
-          error: errorMessage,
-        });
+        return;
       }
+
+      // ================================
+      // ERROR GENERAL
+      // ================================
+
+      setTxResult({
+        success: false,
+        error: errorMessage,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -163,7 +210,7 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
 
     pdf.line(20, 45, 190, 45);
 
-    // Estado
+    // ESTADO
 
     pdf.setFontSize(14);
     pdf.setFont("helvetica", "bold");
@@ -174,7 +221,7 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
 
     pdf.text("TRANSACCIÓN EXITOSA", 75, 60);
 
-    // Monto
+    // MONTO
 
     pdf.setFont("helvetica", "bold");
 
@@ -184,7 +231,7 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
 
     pdf.text(`${successData.amount} XRP`, 75, 80);
 
-    // Destino
+    // DESTINO
 
     pdf.setFont("helvetica", "bold");
 
@@ -198,7 +245,7 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
 
     const destinationHeight = destinationLines.length * 7;
 
-    // Hash
+    // HASH
 
     const hashY = 120 + destinationHeight;
 
@@ -214,7 +261,7 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
 
     const hashHeight = hashLines.length * 7;
 
-    // Fecha
+    // FECHA
 
     const dateY = hashY + hashHeight + 15;
 
@@ -226,7 +273,7 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
 
     pdf.text(successData.date, 75, dateY);
 
-    // Red
+    // RED
 
     pdf.setFont("helvetica", "bold");
 
@@ -312,7 +359,6 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
-                {/* SPINNER */}
                 <svg
                   className="w-5 h-5 animate-spin"
                   viewBox="0 0 24 24"
@@ -460,7 +506,7 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    d="M12 9v3m0 4h.01M10.29 3.86l-8.82 15a2 2 0 001.71 3h17.64a2 2 0 001.71-3l-8.82-15a2 2 0 00-3.42 0z"
+                    d="M12 9v3m0 4h.01M10.29 3.86l-8.82 15a2 2 0 001.71 3h17.64a2 2 0 001.71 3l-8.82-15a2 2 0 00-3.42 0z"
                   />
                 </svg>
               </div>
@@ -516,8 +562,6 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
               animation: "warningPopupEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
             }}
           >
-            {/* ICONO WARNING */}
-
             <div className="flex justify-center mb-5">
               <div
                 className="flex items-center justify-center w-20 h-20 rounded-full bg-yellow-500/10 border border-yellow-500/30"
@@ -535,13 +579,11 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    d="M12 9v3m0 4h.01M10.29 3.86l-8.82 15a2 2 0 001.71 3h17.64a2 2 0 001.71-3l-8.82-15a2 2 0 00-3.42 0z"
+                    d="M12 9v3m0 4h.01M10.29 3.86l-8.82 15a2 2 0 001.71 3h17.64a2 2 0 001.71 3l-8.82-15a2 2 0 00-3.42 0z"
                   />
                 </svg>
               </div>
             </div>
-
-            {/* CONTENIDO */}
 
             <div className="text-center">
               <h3 className="text-2xl font-semibold text-white mb-2">
@@ -552,8 +594,6 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
                 No tenés suficiente XRP disponible para realizar esta
                 transferencia.
               </p>
-
-              {/* MONTO */}
 
               <div className="bg-yellow-500/5 border border-yellow-500/10 rounded-xl p-4 mb-6">
                 <div className="flex justify-between items-center">
@@ -569,8 +609,6 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
                   suficiente XRP para la reserva de la cuenta.
                 </p>
               </div>
-
-              {/* BOTÓN */}
 
               <button
                 onClick={() => setShowInsufficientFunds(false)}
@@ -603,8 +641,6 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
                 "successPopupEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1)",
             }}
           >
-            {/* CHECK */}
-
             <div className="flex justify-center mb-5">
               <div
                 className="flex items-center justify-center w-20 h-20 rounded-full bg-green-500/10 border border-green-500/30"
@@ -637,8 +673,6 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
                 La transferencia de XRP fue procesada correctamente.
               </p>
             </div>
-
-            {/* INFORMACIÓN */}
 
             <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-4 mb-6">
               <div className="flex justify-between items-center">
@@ -686,8 +720,6 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
               </div>
             </div>
 
-            {/* DESCARGAR */}
-
             <button
               onClick={downloadReceipt}
               className="w-full py-3 mb-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 shadow-lg shadow-green-500/10"
@@ -710,8 +742,6 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
               </span>
             </button>
 
-            {/* CERRAR */}
-
             <button
               onClick={() => setShowSuccessPopup(false)}
               className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-medium hover:bg-white/10 transition-all duration-200"
@@ -728,9 +758,7 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
 
       <style>
         {`
-
           @keyframes fadeIn {
-
             from {
               opacity: 0;
             }
@@ -738,12 +766,9 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
             to {
               opacity: 1;
             }
-
           }
 
-
           @keyframes popupEnter {
-
             from {
               opacity: 0;
               transform: scale(0.85) translateY(20px);
@@ -753,12 +778,9 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
               opacity: 1;
               transform: scale(1) translateY(0);
             }
-
           }
 
-
           @keyframes successPopupEnter {
-
             from {
               opacity: 0;
               transform: scale(0.75) translateY(30px);
@@ -773,12 +795,9 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
               opacity: 1;
               transform: scale(1) translateY(0);
             }
-
           }
 
-
           @keyframes iconBounce {
-
             0% {
               opacity: 0;
               transform: scale(0.4);
@@ -796,12 +815,9 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
             100% {
               transform: scale(1);
             }
-
           }
 
-
           @keyframes successIcon {
-
             0% {
               opacity: 0;
               transform: scale(0.2) rotate(-20deg);
@@ -820,12 +836,9 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
               opacity: 1;
               transform: scale(1) rotate(0deg);
             }
-
           }
 
-
           @keyframes warningPopupEnter {
-
             from {
               opacity: 0;
               transform: scale(0.75) translateY(30px);
@@ -840,12 +853,9 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
               opacity: 1;
               transform: scale(1) translateY(0);
             }
-
           }
 
-
           @keyframes warningIcon {
-
             0% {
               opacity: 0;
               transform: scale(0.3) rotate(-15deg);
@@ -864,9 +874,7 @@ const SendComponent = ({ onBalanceUpdate }: SendComponentProps) => {
               opacity: 1;
               transform: scale(1) rotate(0deg);
             }
-
           }
-
         `}
       </style>
     </>
