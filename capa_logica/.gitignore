@@ -1,0 +1,79 @@
+# ========================
+#  Dependencias (SIEMPRE)
+# ========================
+node_modules/
+**/node_modules/          # Por si hay node_modules en subcarpetas
+
+# ========================
+#  Código compilado
+# ========================
+dist/                     # Salida de TypeScript
+*.tsbuildinfo
+
+# ========================
+#  Variables de entorno (¡NUNCA subir!)
+# ========================
+.env
+.env.local
+.env.*.local
+
+# ========================
+#  Configuración de base de datos (con credenciales)
+# ========================
+# Ignora cualquier archivo config.json dentro de carpetas config
+**/config/config.json
+**/config/*.json
+config/
+src/config/
+
+# ========================
+#  Logs
+# ========================
+logs/
+*.log
+npm-debug.log*
+sequelize.log
+
+# ========================
+#  Archivos de sistema operativo
+# ========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ========================
+#  Editores / IDEs
+# ========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ========================
+#  Testing y cobertura
+# ========================
+coverage/
+.nyc_output/
+
+# ========================
+#  Temporales y cachés
+# ========================
+tmp/
+temp/
+*.tmp
+.eslintcache
+.prettiercache
+
+# ========================
+#  Bases de datos locales (SQLite)
+# ========================
+*.sqlite
+*.db
+*.sqlite3
+
+# ========================
+#  Bloqueadores de versiones (opcional)
+# ========================
+package-lock.json          # Algunos equipos lo ignoran
+yarn.lock                  # Lo mismo
