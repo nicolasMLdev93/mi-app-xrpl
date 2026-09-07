@@ -1,11 +1,12 @@
 import { Navigate, Outlet } from "react-router-dom";
 
 const ProtectedRoute = () => {
-  // Verificar si existe la clave pública en sessionStorage
-  const isAuthenticated = sessionStorage.getItem("xrplPublicKey") !== null;
+  // ✅ Buscar el token en localStorage
+  const token = localStorage.getItem("token");
+  console.log("🛡️ ProtectedRoute - Token:", token ? "✅ Existe" : "❌ No existe");
 
-  // Si no está autenticado, redirige al login
-  return isAuthenticated ? <Outlet /> : <Navigate to="/" replace />;
+  // Si no hay token, redirigir al login (página principal)
+  return token ? <Outlet /> : <Navigate to="/" replace />;
 };
 
 export default ProtectedRoute;

@@ -1,97 +1,212 @@
-interface ResumeProps {
+// src/components/Resume.tsx
+import { useState } from "react";
+
+interface Wallet {
+  id: number;
   address: string;
-  shortAddress: string;
-  balance?: number;
-  rlusdBalance?: number;
+  name: string | null;
+  network: string;
+  is_active: boolean;
+  // ... otros campos si los necesitas
 }
 
-const Resume = ({
-  address,
-  shortAddress,
-  balance,
-  rlusdBalance = 0,
-}: ResumeProps) => {
+interface ResumeProps {
+  wallets: Wallet[];
+  balances: Record<string, { xrp: number; rlusd: number }>;
+  loading: boolean;
+  onAddWallet: (address: string, name?: string) => Promise<boolean>;
+}
+
+const Resume = ({ wallets, balances, loading, onAddWallet }: ResumeProps) => {
+  // Obtener usuario desde localStorage
+  const userString = localStorage.getItem("user");
+  const user = userString ? JSON.parse(userString) : null;
+
+  // Estado del modal
+  const [showModal, setShowModal] = useState(false);
+  const [newAddress, setNewAddress] = useState("");
+  const [walletName, setWalletName] = useState("");
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState("");
+
+  // Función para conectar nueva wallet
+  const handleConnect = async () => {
+    // Validar dirección
+    const trimmedAddress = newAddress.trim();
+    if (!trimmedAddress) {
+      setError("La dirección es obligatoria");
+      return;
+    }
+    // Validación simple XRP (comienza con r y longitud ~34)
+    if (!/^r[0-9a-zA-Z]{33,34}$/.test(trimmedAddress)) {
+      setError("Dirección XRP inválida. Debe comenzar con 'r' y tener ~34 caracteres.");
+      return;
+    }
+
+    setIsConnecting(true);
+    setError("");
+
+    try {
+      const success = await onAddWallet(trimmedAddress, walletName.trim() || undefined);
+      if (success) {
+        setShowModal(false);
+        setNewAddress("");
+        setWalletName("");
+      } else {
+        setError("No se pudo agregar la billetera. Intenta de nuevo.");
+      }
+    } catch (err) {
+      console.error("Error al conectar:", err);
+      setError("Error al conectar la billetera.");
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  // Formatear dirección corta
+  const shortAddress = (addr: string) =>
+    addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "";
+
+  // Saludo personalizado
+  const greeting = user ? `Hola, ${user.username}` : "Hola";
+
   return (
     <div className="space-y-6">
-      {/* =========================================
-          TÍTULO
-      ========================================= */}
-
+      {/* Título con saludo */}
       <div>
         <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-          Resumen de la cuenta
+          {greeting}
         </h2>
-
-        <p className="text-gray-400 text-sm">Vista general de tu wallet XRPL</p>
+        <p className="text-gray-400 text-sm">Tus billeteras:</p>
       </div>
+
+      {/* Lista de wallets */}
+      {loading ? (
+        <div className="text-center text-gray-400 py-10">Cargando billeteras...</div>
+      ) : wallets.length === 0 ? (
+        <div className="bg-white/5 rounded-xl p-8 text-center border border-white/10">
+          <p className="text-gray-400">No tienes billeteras conectadas.</p>
+          <p className="text-sm text-gray-500 mt-1">Agrega una usando el botón de abajo.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {wallets.map((wallet) => {
+            const bal = balances[wallet.address] || { xrp: 0, rlusd: 0 };
+            return (
+              <div
+                key={wallet.id}
+                className="bg-white/5 rounded-xl p-5 border border-white/10 hover:border-indigo-500/50 transition-all"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-indigo-400 inline-block"></span>
+                      <span className="font-semibold text-white">
+                        {wallet.name || "Wallet sin nombre"}
+                      </span>
+                      {!wallet.is_active && (
+                        <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
+                          inactiva
+                        </span>
+                      )}
+                    </div>
+                    <div className="font-mono text-sm text-gray-400 mt-1">
+                      {shortAddress(wallet.address)}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-400">Balance</div>
+                    <div className="text-sm font-medium text-green-400">
+                      {bal.xrp.toFixed(4)} XRP
+                    </div>
+                    <div className="text-sm font-medium text-blue-400">
+                      {bal.rlusd.toFixed(4)} RLUSD
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Botón para agregar nueva wallet */}
+      <button
+        onClick={() => setShowModal(true)}
+        className="w-full py-3 rounded-xl bg-white/5 border border-dashed border-white/20 hover:bg-white/10 hover:border-indigo-500/50 transition-all text-gray-300 font-medium flex items-center justify-center gap-2"
+      >
+        <span className="text-xl">+</span> Conectar nueva wallet
+      </button>
 
       {/* =========================================
-          DIRECCIÓN
+          MODAL PARA CONECTAR NUEVA BILLETERA
       ========================================= */}
+      {showModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="bg-white/10 border border-white/20 rounded-2xl p-6 w-full max-w-md backdrop-blur-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-semibold text-white mb-2">
+              Conectar nueva wallet
+            </h3>
+            <p className="text-sm text-gray-400 mb-4">
+              Ingresa la dirección XRP que deseas agregar a tu cuenta.
+            </p>
 
-      <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-        <div className="text-xs text-gray-400 uppercase tracking-wider">
-          Dirección
-        </div>
+            {error && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
 
-        <div className="font-mono text-sm text-gray-200 break-all mt-1">
-          {address}
-        </div>
+            <input
+              type="text"
+              value={newAddress}
+              onChange={(e) => setNewAddress(e.target.value)}
+              placeholder="rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh"
+              className="w-full p-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all mb-3"
+              autoFocus
+            />
+            <input
+              type="text"
+              value={walletName}
+              onChange={(e) => setWalletName(e.target.value)}
+              placeholder="Nombre (opcional)"
+              className="w-full p-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all mb-4"
+            />
 
-        <div className="text-xs text-gray-500 mt-1">{shortAddress}</div>
-      </div>
-
-      {/* =========================================
-          BALANCES
-      ========================================= */}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* =========================================
-            XRP
-        ========================================= */}
-
-        <div className="bg-white/5 rounded-xl p-5 border border-white/10">
-          <div className="text-xs text-gray-400 uppercase tracking-wider">
-            Balance XRP
-          </div>
-
-          <div className="text-3xl font-bold text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text mt-2">
-            {balance?.toLocaleString(undefined, {
-              maximumFractionDigits: 6,
-            }) ?? "0"}{" "}
-            XRP
-          </div>
-
-          <div className="text-xs text-gray-500 mt-2">
-            Fondos de prueba · XRPL Testnet
-          </div>
-        </div>
-
-        {/* =========================================
-            RLUSD
-        ========================================= */}
-
-        <div className="bg-white/5 rounded-xl p-5 border border-white/10">
-          <div className="text-xs text-gray-400 uppercase tracking-wider">
-            Stablecoin
-          </div>
-
-          <div className="flex items-center gap-2 mt-2">
-            <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center font-bold text-sm">
-              $
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={handleConnect}
+                disabled={isConnecting}
+                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all rounded-xl text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isConnecting ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Conectando...
+                  </>
+                ) : (
+                  "Conectar"
+                )}
+              </button>
+              <button
+                onClick={() => setShowModal(false)}
+                className="flex-1 py-3 bg-white/10 hover:bg-white/20 active:scale-95 transition-all rounded-xl text-white font-semibold"
+              >
+                Cancelar
+              </button>
             </div>
-
-            <div className="text-3xl font-bold text-transparent bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text">
-              {rlusdBalance.toLocaleString(undefined, {
-                maximumFractionDigits: 6,
-              })}{" "}
-              RLUSD
-            </div>
           </div>
-
-          <div className="text-xs text-gray-500 mt-2">RLUSD · XRPL Testnet</div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

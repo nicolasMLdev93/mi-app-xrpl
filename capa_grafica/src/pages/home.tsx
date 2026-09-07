@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-
+// src/pages/Home.tsx
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FiHome,
   FiSend,
@@ -19,267 +19,192 @@ import SettingsComponent from "../components/settings_component";
 import HomeBackground from "../components/home_background";
 import SideBar from "../components/side_bar";
 
-import { getBalance } from "../utils/get_balance";
-import { getRLUSDBalance } from "../utils/get_rlusd_balance";
-
 type Tab = "dashboard" | "send" | "receive" | "history" | "settings";
 
-type LocationState = {
-  address?: string;
-  balance?: number;
-};
+// Tipo para una billetera (coincide con la respuesta de GET /api/billeteras)
+interface Wallet {
+  id: number;
+  user_id: number;
+  address: string;
+  network: string;
+  name: string | null;
+  provider: string | null;
+  is_active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const Home = () => {
-  const location = useLocation();
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");
 
+  // =========================================
+  // ESTADOS
+  // =========================================
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
-
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // =========================================
-  // 1. OBTENER DATOS INICIALES
-  // =========================================
-
-  const locationState = location.state as LocationState | null;
-
-  const storedAddress = sessionStorage.getItem("xrplPublicKey");
-
-  const storedBalance = sessionStorage.getItem("xrplBalance");
+  // Lista de billeteras del usuario
+  const [wallets, setWallets] = useState<Wallet[]>([]);
+  // Balances por billetera (clave: address, valor: { xrp, rlusd })
+  const [balances, setBalances] = useState<Record<string, { xrp: number; rlusd: number }>>({});
+  const [loading, setLoading] = useState(true);
 
   // =========================================
-  // 2. ADDRESS
+  // OBTENER BILLETERAS DESDE EL BACKEND
   // =========================================
-
-  const [address, setAddress] = useState<string>(
-    locationState?.address ?? storedAddress ?? "",
-  );
-
-  // =========================================
-  // 3. BALANCE XRP
-  // =========================================
-
-  const [balance, setBalance] = useState<number>(
-    locationState?.balance ?? (storedBalance ? Number(storedBalance) : 0),
-  );
-
-  // =========================================
-  // 4. BALANCE RLUSD
-  // =========================================
-
-  const [rlusdBalance, setRlusdBalance] = useState<number>(0);
-
-  // =========================================
-  // 5. REFERENCIA DEL COMPONENTE
-  // =========================================
-
-  const isMounted = useRef(true);
-
-  // =========================================
-  // 6. ACTUALIZAR BALANCE XRP
-  // =========================================
-
-  const refreshBalance = async () => {
-    if (!address || !isMounted.current) {
-      return;
-    }
-
+  const fetchWallets = async () => {
     try {
-      const newBalance = await getBalance(address);
-
-      if (isMounted.current) {
-        setBalance(newBalance);
-
-        sessionStorage.setItem("xrplBalance", String(newBalance));
-
-        console.log("💰 Balance XRP actualizado:", newBalance, "XRP");
-      }
-    } catch (error) {
-      if (isMounted.current) {
-        console.error("❌ Error al obtener balance XRP:", error);
-
-        // Conservamos el balance anterior.
-      }
-    }
-  };
-
-  // =========================================
-  // 7. ACTUALIZAR BALANCE RLUSD
-  // =========================================
-
-  const refreshRLUSDBalance = async () => {
-    if (!address || !isMounted.current) {
-      return;
-    }
-
-    try {
-      const newBalance = await getRLUSDBalance(address);
-
-      if (isMounted.current) {
-        setRlusdBalance(newBalance);
-
-        console.log("💵 Balance RLUSD actualizado:", newBalance, "RLUSD");
-      }
-    } catch (error) {
-      if (isMounted.current) {
-        console.error("❌ Error al obtener balance RLUSD:", error);
-
-        // Conservamos el balance anterior.
-      }
-    }
-  };
-
-  // =========================================
-  // 8. ACTUALIZAR LOS BALANCES AL ENTRAR
-  // =========================================
-
-  useEffect(() => {
-    isMounted.current = true;
-
-    const refreshTimeout = window.setTimeout(() => {
-      void refreshBalance();
-
-      void refreshRLUSDBalance();
-    }, 0);
-
-    return () => {
-      window.clearTimeout(refreshTimeout);
-
-      isMounted.current = false;
-    };
-  }, [address]);
-
-  // =========================================
-  // 9. GUARDAR ADDRESS EN SESSION STORAGE
-  // =========================================
-
-  useEffect(() => {
-    if (address) {
-      sessionStorage.setItem("xrplPublicKey", address);
-    }
-  }, [address]);
-
-  // =========================================
-  // 10. REDIRIGIR SI NO HAY ADDRESS
-  // =========================================
-
-  useEffect(() => {
-    if (!address) {
-      navigate("/");
-    }
-  }, [address, navigate]);
-
-  // =========================================
-  // 11. SIDEBAR RESPONSIVE
-  // =========================================
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) {
-        setSidebarOpen(false);
+      const response = await fetch("http://localhost:3000/api/billeteras", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setWallets(data.data);
       } else {
-        setSidebarOpen(true);
+        console.error("Error al obtener wallets:", data.message);
       }
-    };
+    } catch (error) {
+      console.error("Error de red al obtener wallets:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    handleResize();
+  // =========================================
+  // OBTENER BALANCES PARA CADA BILLETERA
+  // =========================================
+  const fetchBalances = async () => {
+    const newBalances: Record<string, { xrp: number; rlusd: number }> = {};
+    for (const wallet of wallets) {
+      try {
+        // Importar funciones desde utils (asumiendo que existen)
+        const { getBalance } = await import("../utils/get_balance");
+        const { getRLUSDBalance } = await import("../utils/get_rlusd_balance");
 
-    window.addEventListener("resize", handleResize);
+        const xrp = await getBalance(wallet.address);
+        const rlusd = await getRLUSDBalance(wallet.address);
+        newBalances[wallet.address] = { xrp, rlusd };
+      } catch (error) {
+        console.error(`Error al obtener balance para ${wallet.address}:`, error);
+        newBalances[wallet.address] = { xrp: 0, rlusd: 0 };
+      }
+    }
+    setBalances(newBalances);
+  };
 
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+  // Cargar wallets al montar y cuando se agregue una nueva
+  /*
+  useEffect(() => {
+    fetchWallets();
   }, []);
+  */
+  /*
+  // Cuando cambie la lista de wallets, actualizar balances
+  useEffect(() => {
+    if (wallets.length > 0) {
+      fetchBalances();
+    }
+  }, [wallets]);
+  */
 
-  // =========================================
-  // 12. CARGANDO
-  // =========================================
-
-  if (!address) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="text-white text-lg animate-pulse">
-          Cargando datos de la wallet...
-        </div>
-      </div>
-    );
+  if (!token) {
+    navigate("/");
+    return null;
   }
 
   // =========================================
-  // 13. DIRECCIÓN CORTA
+  // FUNCIÓN PARA AGREGAR NUEVA BILLETERA
+  // (se pasa a Resume para que lo use al conectar)
   // =========================================
+  const addWallet = async (address: string, name?: string) => {
+    try {
+      const response = await fetch("http://localhost:3000/api/billeteras", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          address,
+          network: "XRP",
+          name: name || "Mi billetera XRP",
+          provider: "Manual",
+          is_active: true,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Recargar la lista de wallets
+        await fetchWallets();
+        return true;
+      } else {
+        console.error("Error al agregar wallet:", data.message);
+        return false;
+      }
+    } catch (error) {
+      console.error("Error de red al agregar wallet:", error);
+      return false;
+    }
+  };
 
-  const shortAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
+  // =========================================
+  // SIDEBAR RESPONSIVE
+  // =========================================
+  useEffect(() => {
+    const handleResize = () => {
+      setSidebarOpen(window.innerWidth >= 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // =========================================
-  // 14. MENÚ
+  // DATOS PARA SIDEBAR (tomamos la primera wallet si existe)
   // =========================================
+  const firstWallet = wallets.length > 0 ? wallets[0] : null;
+  const address = firstWallet?.address || "";
+  const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Sin billetera";
+  const balance = firstWallet ? balances[firstWallet.address]?.xrp || 0 : 0;
 
   const menuItems = [
-    {
-      id: "dashboard",
-      label: "Resumen",
-      icon: FiHome,
-    },
-    {
-      id: "send",
-      label: "Enviar",
-      icon: FiSend,
-    },
-    {
-      id: "receive",
-      label: "Recibir",
-      icon: FiDownload,
-    },
-    {
-      id: "history",
-      label: "Historial",
-      icon: FiClock,
-    },
-    {
-      id: "settings",
-      label: "Ajustes",
-      icon: FiSettings,
-    },
+    { id: "dashboard", label: "Resumen", icon: FiHome },
+    { id: "send", label: "Enviar", icon: FiSend },
+    { id: "receive", label: "Recibir", icon: FiDownload },
+    { id: "history", label: "Historial", icon: FiClock },
+    { id: "settings", label: "Ajustes", icon: FiSettings },
   ];
-
-  // =========================================
-  // 15. CONTENIDO
-  // =========================================
 
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard":
         return (
           <Resume
-            address={address}
-            shortAddress={shortAddress}
-            balance={balance}
-            rlusdBalance={rlusdBalance}
+            wallets={wallets}
+            balances={balances}
+            loading={loading}
+            onAddWallet={addWallet}
           />
         );
-
       case "send":
-        return <SendComponent onBalanceUpdate={refreshBalance} />;
-
+        return <SendComponent onBalanceUpdate={() => fetchBalances()} />;
       case "receive":
         return <ReciveComponent address={address} />;
-
       case "history":
         return <HistoryComponent />;
-
       case "settings":
         return <SettingsComponent />;
-
       default:
         return null;
     }
   };
 
   // =========================================
-  // 16. RENDER
+  // RENDER
   // =========================================
-
   return (
     <div className="min-h-screen bg-black text-white flex relative overflow-hidden">
       <HomeBackground />
@@ -296,7 +221,7 @@ const Home = () => {
             tab === "history" ||
             tab === "settings"
           ) {
-            setActiveTab(tab);
+            setActiveTab(tab as Tab);
           }
         }}
         address={address}
@@ -316,11 +241,7 @@ const Home = () => {
         onClick={() => setSidebarOpen(!sidebarOpen)}
         className="fixed top-4 left-4 z-50 p-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 text-white hover:bg-white/20 transition-colors md:hidden"
       >
-        {sidebarOpen ? (
-          <FiX className="text-xl" />
-        ) : (
-          <FiMenu className="text-xl" />
-        )}
+        {sidebarOpen ? <FiX className="text-xl" /> : <FiMenu className="text-xl" />}
       </button>
 
       <main
@@ -328,7 +249,9 @@ const Home = () => {
           sidebarOpen ? "md:ml-64" : "ml-0"
         } p-6 md:p-8 relative z-10 min-h-screen`}
       >
-        <div className="max-w-4xl mx-auto pt-12 md:pt-0">{renderContent()}</div>
+        <div className="max-w-4xl mx-auto pt-12 md:pt-0">
+          {renderContent()}
+        </div>
       </main>
     </div>
   );
