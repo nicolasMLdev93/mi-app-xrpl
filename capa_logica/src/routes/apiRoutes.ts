@@ -1,29 +1,35 @@
-import { Router } from 'express';
-import { register, login } from '../controllers/authController';
+import { Router } from "express";
+import { register, login } from "../controllers/authController";
 import {
   registerValidationRules,
   loginValidationRules,
   validate,
-} from '../middlewares/validationMiddleware';
-
+  billeteraValidationRules,
+} from "../middlewares/validationMiddleware";
+import { authenticate } from "../middlewares/authMiddleware";
+import {
+  crearBilletera,
+  obtenerBilleteras,
+} from "../controllers/billeteraController";
 const router = Router();
 
+router.post("/register", registerValidationRules, validate, register);
+
+router.post("/login", loginValidationRules, validate, login);
+
+// Ruta protegida
 router.post(
-  '/register',
-  registerValidationRules,
+  "/billeteras",
+  authenticate,
+  billeteraValidationRules,
   validate,
-  register
+  crearBilletera,
 );
 
-router.post(
-  '/login',
-  loginValidationRules,
-  validate,
-  login
-);
+router.get("/billeteras", authenticate, obtenerBilleteras);
 
-router.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date() });
+router.get("/health", (_req, res) => {
+  res.json({ status: "ok", timestamp: new Date() });
 });
 
 export default router;

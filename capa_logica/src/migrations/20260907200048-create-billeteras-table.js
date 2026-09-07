@@ -2,47 +2,46 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('trust_lines', {
+    await queryInterface.createTable('billeteras', {
       id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
         primaryKey: true,
         allowNull: false,
       },
-      wallet_id: {
+      user_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'billeteras',
+          model: 'usuarios',
           key: 'id',
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE',
       },
-      currency: {
-        type: Sequelize.STRING(10),
-        allowNull: false,
-      },
-      issuer: {
+      address: {
         type: Sequelize.STRING(255),
         allowNull: false,
+        unique: true,
       },
-      limit_amount: {
-        type: Sequelize.DECIMAL(20, 8),
+      network: {
+        type: Sequelize.STRING(50),
         allowNull: false,
-        defaultValue: 0,
       },
-      balance: {
-        type: Sequelize.DECIMAL(20, 8),
+      name: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+      },
+      provider: {
+        type: Sequelize.STRING(50),
+        allowNull: true,
+      },
+      is_active: {
+        type: Sequelize.BOOLEAN,
         allowNull: false,
-        defaultValue: 0,
+        defaultValue: true,
       },
-      status: {
-        type: Sequelize.ENUM('active', 'inactive', 'blocked'),
-        allowNull: false,
-        defaultValue: 'active',
-      },
-      created_at: {
+      createdAt: {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
@@ -54,12 +53,12 @@ module.exports = {
       },
     });
 
-    // Índices para mejorar rendimiento
-    await queryInterface.addIndex('trust_lines', ['wallet_id']);
-    await queryInterface.addIndex('trust_lines', ['currency', 'issuer']);
+    // Índices
+    await queryInterface.addIndex('billeteras', ['user_id']);
+    await queryInterface.addIndex('billeteras', ['address']);
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('trust_lines');
+    await queryInterface.dropTable('billeteras');
   }
 };

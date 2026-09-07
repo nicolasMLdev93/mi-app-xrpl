@@ -1,0 +1,46 @@
+import { Sequelize } from "sequelize";
+import config from "../config/config.json";
+import Usuario from "./Usuario";
+import Billetera from "./Billetera";
+import Transaccion from "./Transaccion";
+import TrustLine from "./TrustLine";
+
+const env = process.env.NODE_ENV || "development";
+const dbConfig = (config as any)[env];
+
+if (!dbConfig) {
+  throw new Error(`Configuración para entorno "${env}" no encontrada.`);
+}
+
+const sequelize = new Sequelize(
+  dbConfig.database,
+  dbConfig.username,
+  dbConfig.password,
+  {
+    host: dbConfig.host,
+    port: dbConfig.port || 3306,
+    dialect: dbConfig.dialect,
+    logging: dbConfig.logging || false,
+  },
+);
+
+// Inicializar modelos
+Usuario.initModel(sequelize);
+Billetera.initModel(sequelize);
+Transaccion.initModel(sequelize);
+TrustLine.initModel(sequelize);
+
+// Relaciones
+Usuario.hasMany(Billetera, { foreignKey: "user_id", as: "billeteras" });
+Billetera.belongsTo(Usuario, { foreignKey: "user_id", as: "usuario" });
+
+Billetera.hasMany(Transaccion, {
+  foreignKey: "wallet_id",
+  as: "transacciones",
+});
+Transaccion.belongsTo(Billetera, { foreignKey: "wallet_id", as: "billetera" });
+
+Billetera.hasMany(TrustLine, { foreignKey: "wallet_id", as: "trustLines" });
+TrustLine.belongsTo(Billetera, { foreignKey: "wallet_id", as: "billetera" });
+
+export { sequelize, Usuario, Billetera, Transaccion, TrustLine };

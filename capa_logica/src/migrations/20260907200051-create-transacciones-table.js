@@ -69,7 +69,7 @@ module.exports = {
         type: Sequelize.DATE,
         allowNull: false,
       },
-      created_at: {
+      createdAt: {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
@@ -81,11 +81,9 @@ module.exports = {
       },
     });
 
-    // Índices para mejorar rendimiento
     await queryInterface.addIndex('transacciones', ['wallet_id']);
     await queryInterface.addIndex('transacciones', ['tx_hash']);
     await queryInterface.addIndex('transacciones', ['status']);
-    await queryInterface.addIndex('transacciones', ['transaction_date']);
   },
 
   down: async (queryInterface, Sequelize) => {
