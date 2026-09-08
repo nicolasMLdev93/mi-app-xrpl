@@ -1,7 +1,6 @@
 // src/components/Resume.tsx
 import { useState, useEffect } from "react";
 import { getXamanWallets } from "../utils/getXamanWallets";
-import { API_BASE_URL } from "../utils/config";
 import { FiSettings, FiX } from "react-icons/fi";
 
 // Constantes para RLUSD (Testnet)
@@ -114,7 +113,6 @@ const Resume = ({
         return;
       }
 
-      // 🔥 Verificar qué direcciones ya existen en la lista actual
       const existingAddresses = new Set(wallets.map(w => w.address));
       let addedCount = 0;
       let skippedCount = 0;
@@ -186,7 +184,7 @@ const Resume = ({
   };
 
   // =========================================
-  // ELIMINAR TRUST LINE (con modal de confirmación)
+  // ELIMINAR TRUST LINE (con spinner en modal)
   // =========================================
   const handleDeleteTrustLine = async () => {
     if (!selectedTrustLine) return;
@@ -286,7 +284,7 @@ const Resume = ({
   // ABRIR CONFIRMACIÓN PARA ELIMINAR
   // =========================================
   const openConfirmDelete = () => {
-    setConfirmMessage(`¿Estás seguro de que quieres eliminar el Trust Line de ${selectedTrustLine?.currency}?`);
+    setConfirmMessage(`¿Seguro que deseas eliminar el Trust Line de ${selectedTrustLine?.currency}?`);
     setConfirmAction(() => handleDeleteTrustLine);
     setShowConfirmModal(true);
   };
@@ -740,11 +738,14 @@ const Resume = ({
         </div>
       )}
 
-      {/* Modal de confirmación para eliminar */}
+      {/* Modal de confirmación para eliminar CON SPINNER */}
       {showConfirmModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-          onClick={() => setShowConfirmModal(false)}
+          onClick={() => {
+            // No cerrar si se está eliminando
+            if (!deleting) setShowConfirmModal(false);
+          }}
         >
           <div
             className="bg-white/10 border border-white/20 rounded-2xl p-6 w-full max-w-md backdrop-blur-xl"
@@ -757,13 +758,41 @@ const Resume = ({
                 onClick={() => {
                   if (confirmAction) confirmAction();
                 }}
-                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 rounded-xl text-white font-medium"
+                disabled={deleting}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 rounded-xl text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Sí, eliminar
+                {deleting ? (
+                  <>
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Eliminando...
+                  </>
+                ) : (
+                  "Sí, eliminar"
+                )}
               </button>
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="flex-1 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-white font-medium"
+                disabled={deleting}
+                className="flex-1 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-white font-medium disabled:opacity-50"
               >
                 Cancelar
               </button>
