@@ -40,6 +40,8 @@ Aplicación full-stack para gestionar billeteras XRP, tokens RLUSD y Trust Lines
 - (Opcional) cuenta en Clever Cloud o similar para BD en la nube
 
 ---
+## Clonar repo
+git clone https://github.com/nicolasMLdev93/mi-app-xrpl.git
 
 ## Frontend (modo desarrollo)
 - cd capa_grafica
