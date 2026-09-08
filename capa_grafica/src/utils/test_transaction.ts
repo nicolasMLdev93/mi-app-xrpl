@@ -3,7 +3,7 @@ import { XRPL_TESTNET } from "./config";
 
 type TransactionInput = {
   address: string;
-  amount: string; // cantidad de XRP
+  amount: string;
   destination: string;
 
   // Función proporcionada por la wallet para firmar

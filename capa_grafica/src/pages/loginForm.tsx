@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import App_logo from "../icons/app_logo";
 import Spinner from "../components/spinner";
+import { API_BASE_URL } from "../utils/config";
 
 const LoginForm = () => {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ const LoginForm = () => {
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:3000/api/login", {
+      const response = await fetch(`${API_BASE_URL}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -80,7 +81,10 @@ const LoginForm = () => {
 
         <form onSubmit={handleSubmit} className="w-full space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-300 mb-1"
+            >
               Email
             </label>
             <input
@@ -95,7 +99,10 @@ const LoginForm = () => {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-300 mb-1"
+            >
               Contraseña
             </label>
             <input
@@ -128,7 +135,10 @@ const LoginForm = () => {
         <div className="w-full h-px bg-white/10 my-6"></div>
         <p className="text-sm text-gray-400">
           ¿No tienes cuenta?{" "}
-          <Link to="/register" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+          <Link
+            to="/register"
+            className="text-indigo-400 hover:text-indigo-300 transition-colors"
+          >
             Regístrate
           </Link>
         </p>

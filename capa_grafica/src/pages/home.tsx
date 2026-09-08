@@ -18,7 +18,7 @@ import HistoryComponent from "../components/history_component";
 import SettingsComponent from "../components/settings_component";
 import HomeBackground from "../components/home_background";
 import SideBar from "../components/side_bar";
-import { API_BASE_URL } from "../utils/config";
+import { API_BASE_URL, RLUSD_CURRENCY, RLUSD_ISSUER } from "../utils/config";
 
 type Tab = "dashboard" | "send" | "receive" | "history" | "settings";
 
@@ -60,9 +60,12 @@ const Home = () => {
         const { getBalance } = await import("../utils/get_balance");
         const xrp = await getBalance(wallet.address);
 
-        const rlusdRes = await fetch(`${API_BASE_URL}/balances/rlusd/${wallet.address}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const rlusdRes = await fetch(
+          `${API_BASE_URL}/balances/rlusd/${wallet.address}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         const rlusdData = await rlusdRes.json();
         let rlusd = rlusdData.balance || 0;
 
@@ -72,7 +75,10 @@ const Home = () => {
 
         newBalances[wallet.address] = { xrp, rlusd };
       } catch (error) {
-        console.error(`Error al obtener balance para ${wallet.address}:`, error);
+        console.error(
+          `Error al obtener balance para ${wallet.address}:`,
+          error,
+        );
         newBalances[wallet.address] = { xrp: 0, rlusd: 0 };
       }
     }
@@ -87,7 +93,9 @@ const Home = () => {
       });
       const data = await response.json();
       if (data.success) {
-        const activeWallets = data.data.filter((w: Wallet) => w.is_active === true);
+        const activeWallets = data.data.filter(
+          (w: Wallet) => w.is_active === true,
+        );
         setWallets(activeWallets);
         await fetchBalances(activeWallets);
       } else {
@@ -131,13 +139,18 @@ const Home = () => {
 
       const walletId = data.data.id;
       try {
-        const checkRes = await fetch(`${API_BASE_URL}/billeteras/${walletId}/trustlines`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const checkRes = await fetch(
+          `${API_BASE_URL}/billeteras/${walletId}/trustlines`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         const checkData = await checkRes.json();
 
+        // 🔥 Usar la constante hexadecimal para comparar
         const exists = checkData.data?.some(
-          (tl: any) => tl.currency === "RLUSD" && tl.issuer === "rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV"
+          (tl: any) =>
+            tl.currency === RLUSD_CURRENCY && tl.issuer === RLUSD_ISSUER,
         );
 
         if (!exists) {
@@ -149,8 +162,8 @@ const Home = () => {
             },
             body: JSON.stringify({
               wallet_id: walletId,
-              currency: "RLUSD",
-              issuer: "rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV",
+              currency: RLUSD_CURRENCY, // 🔥 Usar hex
+              issuer: RLUSD_ISSUER,
               limit_amount: 1000000,
             }),
           });
@@ -158,7 +171,10 @@ const Home = () => {
           if (trustData.success) {
             console.log("✅ Trust Line RLUSD creado automáticamente");
           } else {
-            console.warn("⚠️ No se pudo crear Trust Line automático:", trustData.message);
+            console.warn(
+              "⚠️ No se pudo crear Trust Line automático:",
+              trustData.message,
+            );
           }
         } else {
           console.log("ℹ️ Trust Line RLUSD ya existe para esta wallet");
@@ -179,12 +195,17 @@ const Home = () => {
   // =========================================
   // CREAR TRUST LINE (devuelve objeto con success, message, code)
   // =========================================
-  const createTrustLine = async (walletId: number, currency: string, issuer: string, limitAmount: number) => {
+  const createTrustLine = async (
+    walletId: number,
+    currency: string,
+    issuer: string,
+    limitAmount: number,
+  ) => {
     try {
       const response = await fetch(`${API_BASE_URL}/trustlines`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
@@ -199,58 +220,64 @@ const Home = () => {
         await fetchWallets();
         return { success: true };
       } else {
-        return { 
-          success: false, 
-          message: data.message || 'Error al crear trust line',
-          code: response.status 
+        return {
+          success: false,
+          message: data.message || "Error al crear trust line",
+          code: response.status,
         };
       }
     } catch (error) {
-      console.error('Error de red al crear trust line:', error);
-      return { 
-        success: false, 
-        message: 'Error de conexión con el servidor',
-        code: 500 
+      console.error("Error de red al crear trust line:", error);
+      return {
+        success: false,
+        message: "Error de conexión con el servidor",
+        code: 500,
       };
     }
   };
 
   const deleteTrustLine = async (trustLineId: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/trustlines/${trustLineId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/trustlines/${trustLineId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       const data = await response.json();
       if (data.success) {
         await fetchWallets();
         return true;
       } else {
-        console.error('Error al eliminar trust line:', data.message);
+        console.error("Error al eliminar trust line:", data.message);
         return false;
       }
     } catch (error) {
-      console.error('Error de red al eliminar trust line:', error);
+      console.error("Error de red al eliminar trust line:", error);
       return false;
     }
   };
 
   const syncTrustLine = async (trustLineId: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/trustlines/${trustLineId}/sync`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/trustlines/${trustLineId}/sync`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       const data = await response.json();
       if (data.success) {
         await fetchWallets();
         return data;
       } else {
-        console.error('Error al sincronizar trust line:', data.message);
+        console.error("Error al sincronizar trust line:", data.message);
         return null;
       }
     } catch (error) {
-      console.error('Error de red al sincronizar trust line:', error);
+      console.error("Error de red al sincronizar trust line:", error);
       return null;
     }
   };
@@ -269,7 +296,9 @@ const Home = () => {
 
   const firstWallet = wallets.length > 0 ? wallets[0] : null;
   const address = firstWallet?.address || "";
-  const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Sin billetera";
+  const shortAddress = address
+    ? `${address.slice(0, 6)}...${address.slice(-4)}`
+    : "Sin billetera";
   const balance = firstWallet ? balances[firstWallet.address]?.xrp || 0 : 0;
 
   const menuItems = [
@@ -316,7 +345,13 @@ const Home = () => {
         menuItems={menuItems}
         activeTab={activeTab}
         setActiveTab={(tab: string) => {
-          if (tab === "dashboard" || tab === "send" || tab === "receive" || tab === "history" || tab === "settings") {
+          if (
+            tab === "dashboard" ||
+            tab === "send" ||
+            tab === "receive" ||
+            tab === "history" ||
+            tab === "settings"
+          ) {
             setActiveTab(tab as Tab);
           }
         }}
@@ -326,15 +361,24 @@ const Home = () => {
         navigate={navigate}
       />
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
         className="fixed top-4 left-4 z-50 p-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 text-white hover:bg-white/20 transition-colors md:hidden"
       >
-        {sidebarOpen ? <FiX className="text-xl" /> : <FiMenu className="text-xl" />}
+        {sidebarOpen ? (
+          <FiX className="text-xl" />
+        ) : (
+          <FiMenu className="text-xl" />
+        )}
       </button>
-      <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? "md:ml-64" : "ml-0"} p-6 md:p-8 relative z-10 min-h-screen`}>
+      <main
+        className={`flex-1 transition-all duration-300 ${sidebarOpen ? "md:ml-64" : "ml-0"} p-6 md:p-8 relative z-10 min-h-screen`}
+      >
         <div className="max-w-4xl mx-auto pt-12 md:pt-0">{renderContent()}</div>
       </main>
     </div>

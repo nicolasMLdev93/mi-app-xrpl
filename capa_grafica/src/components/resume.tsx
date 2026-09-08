@@ -2,10 +2,13 @@
 import { useState, useEffect } from "react";
 import { getXamanWallets } from "../utils/getXamanWallets";
 import { FiSettings, FiX } from "react-icons/fi";
+import { RLUSD_CURRENCY, RLUSD_ISSUER } from "../utils/config";
 
-// Constantes para RLUSD (Testnet)
-const RLUSD_CURRENCY = "RLUSD";
-const RLUSD_ISSUER = "rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV";
+// 🔥 Helper para mostrar el nombre legible del token
+const getCurrencyDisplay = (currencyHex: string): string => {
+  if (currencyHex === RLUSD_CURRENCY) return "RLUSD";
+  return currencyHex;
+};
 
 interface TrustLine {
   id: number;
@@ -111,14 +114,10 @@ const Resume = ({
     setSuccess(null);
   };
 
-  // Formato del balance
-  // ✅ Versión robusta que maneja strings y números
+  // ✅ Formato del balance (2 decimales)
   const formatBalance = (value: any, decimals: number = 2): string => {
-    // Convertir a número (si es string o número)
     const num = typeof value === "number" ? value : parseFloat(value);
-    // Si no es un número válido, devolver "0.00"
     if (isNaN(num)) return "0.00";
-    // Formatear con decimales y separador de miles
     return num.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
@@ -233,7 +232,7 @@ const Resume = ({
       const deleted = await onDeleteTrustLine(selectedTrustLine.id);
       if (deleted) {
         setSuccess(
-          `✅ Trust Line de ${selectedTrustLine.currency} eliminado correctamente`,
+          `✅ Trust Line de ${getCurrencyDisplay(selectedTrustLine.currency)} eliminado correctamente`,
         );
         setShowManageModal(false);
         setSelectedTrustLine(null);
@@ -264,7 +263,7 @@ const Resume = ({
       const result = await onSyncTrustLine(selectedTrustLine.id);
       if (result && result.success) {
         setSuccess(
-          `✅ Trust Line sincronizado correctamente. Balance: ${result.realBalance || 0} RLUSD`,
+          `✅ Trust Line sincronizado correctamente. Balance: ${formatBalance(result.realBalance || 0)} RLUSD`,
         );
         if (result.data) {
           setSelectedTrustLine({
@@ -285,11 +284,11 @@ const Resume = ({
   };
 
   // =========================================
-  // CREAR TRUST LINE - verificar duplicado ANTES de llamar al backend
+  // CREAR TRUST LINE - usando la constante hexadecimal
   // =========================================
   const handleCreateTrustLine = async () => {
-    const currency = RLUSD_CURRENCY;
-    const issuer = RLUSD_ISSUER;
+    const currency = RLUSD_CURRENCY; // "524C555344..."
+    const issuer = RLUSD_ISSUER;     // "rQhWct..."
 
     if (!selectedWalletId) {
       setError("Selecciona una wallet primero");
@@ -300,22 +299,21 @@ const Resume = ({
       return;
     }
 
-    // 🔥 Verificar si la wallet seleccionada ya tiene un trust line de este token
+    // 🔥 Verificar duplicado comparando con el hex
     const wallet = wallets.find((w) => w.id === selectedWalletId);
     const existingTrustLine = wallet?.trustLines?.find(
       (tl) => tl.currency === currency && tl.issuer === issuer,
     );
 
     if (existingTrustLine) {
-      // Mostrar el modal de advertencia y cerrar el modal de creación
       setWarningMessage(
-        `YA tienes un trust line para el token ${currency} en esta billetera.`,
+        `YA tienes un trust line para el token RLUSD en esta billetera.`,
       );
       setShowWarningModal(true);
       setShowCreateModal(false);
       setNewLimitAmount(1000000);
       setSelectedWalletId(null);
-      return; // ✅ No hacemos la petición al backend
+      return;
     }
 
     // ✅ Si no existe, proceder a crear
@@ -332,7 +330,7 @@ const Resume = ({
       );
       if (result.success) {
         setSuccess(
-          `✅ Trust Line RLUSD creado exitosamente. Límite: ${newLimitAmount}`,
+          `✅ Trust Line RLUSD creado exitosamente. Límite: ${formatBalance(newLimitAmount)}`,
         );
         setShowCreateModal(false);
         setNewLimitAmount(1000000);
@@ -357,7 +355,7 @@ const Resume = ({
   // =========================================
   const openConfirmDelete = () => {
     setConfirmMessage(
-      `¿Seguro que deseas eliminar el Trust Line de ${selectedTrustLine?.currency}?`,
+      `¿Seguro que deseas eliminar el Trust Line de ${getCurrencyDisplay(selectedTrustLine?.currency || "")}?`,
     );
     setConfirmAction(() => handleDeleteTrustLine);
     setShowConfirmModal(true);
@@ -431,7 +429,7 @@ const Resume = ({
                       {formatBalance(bal.xrp)} XRP
                     </div>
                     <div className="text-sm font-medium text-blue-400">
-                      {formatBalance(bal.rlusd, 2)} RLUSD
+                      {formatBalance(bal.rlusd)} RLUSD
                     </div>
                   </div>
                 </div>
@@ -461,7 +459,8 @@ const Resume = ({
                       >
                         <div>
                           <span className="text-xs text-gray-300">
-                            {tl.currency} (emisor: {tl.issuer.slice(0, 6)}...)
+                            {getCurrencyDisplay(tl.currency)} (emisor:{" "}
+                            {tl.issuer.slice(0, 6)}...)
                           </span>
                           <span className="text-xs text-gray-400 ml-2">
                             Límite: {formatBalance(tl.limit_amount)} | Balance:{" "}
@@ -624,7 +623,7 @@ const Resume = ({
         </div>
       )}
 
-      {/* Modal para crear Trust Line */}
+      {/* Modal para crear Trust Line CON onBlur */}
       {showCreateModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
@@ -649,10 +648,11 @@ const Resume = ({
               <div className="bg-white/5 rounded-lg p-3 border border-white/10">
                 <p className="text-xs text-gray-400">Emisor</p>
                 <p className="text-white font-mono text-sm break-all">
-                  rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV
+                  {RLUSD_ISSUER}
                 </p>
               </div>
 
+              {/* 🔥 CAMPO DE LÍMITE CON onBlur */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
                   Límite{" "}
@@ -669,6 +669,13 @@ const Resume = ({
                       setNewLimitAmount(val || 0);
                     } else {
                       setError("El límite debe ser mayor a 0");
+                    }
+                  }}
+                  onBlur={() => {
+                    // Al perder el foco, convertir a entero sin decimales
+                    const cleanValue = Math.floor(newLimitAmount);
+                    if (!isNaN(cleanValue) && cleanValue > 0) {
+                      setNewLimitAmount(cleanValue);
                     }
                   }}
                   placeholder="1000000"
@@ -771,7 +778,7 @@ const Resume = ({
                 <div className="flex justify-between">
                   <span className="text-xs text-gray-400">Moneda</span>
                   <span className="text-sm text-white font-medium">
-                    {selectedTrustLine.currency}
+                    {getCurrencyDisplay(selectedTrustLine.currency)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -784,13 +791,13 @@ const Resume = ({
                 <div className="flex justify-between">
                   <span className="text-xs text-gray-400">Límite</span>
                   <span className="text-sm text-blue-400 font-medium">
-                    {selectedTrustLine.limit_amount}
+                    {formatBalance(selectedTrustLine.limit_amount)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-gray-400">Balance</span>
                   <span className="text-sm text-green-400 font-medium">
-                    {selectedTrustLine.balance}
+                    {formatBalance(selectedTrustLine.balance)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -895,7 +902,7 @@ const Resume = ({
         </div>
       )}
 
-      {/* Modal de advertencia (Trust Line duplicado) - sin error 409 */}
+      {/* Modal de advertencia (Trust Line duplicado) */}
       {showWarningModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"

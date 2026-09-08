@@ -30,7 +30,7 @@ class TrustLine extends Model<TrustLineAttributes, TrustLineCreationAttributes> 
       {
         id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
         wallet_id: { type: DataTypes.INTEGER, allowNull: false },
-        currency: { type: DataTypes.STRING(10), allowNull: false },
+        currency: { type: DataTypes.STRING(40), allowNull: false },
         issuer: { type: DataTypes.STRING(255), allowNull: false },
         limit_amount: { type: DataTypes.DECIMAL(20, 8), allowNull: false, defaultValue: 0 },
         balance: { type: DataTypes.DECIMAL(20, 8), allowNull: false, defaultValue: 0 },

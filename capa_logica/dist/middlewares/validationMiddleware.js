@@ -75,7 +75,7 @@ exports.trustLineValidationRules = [
     (0, express_validator_1.body)('currency')
         .notEmpty().withMessage('currency es obligatorio')
         .isString().withMessage('currency debe ser texto')
-        .isLength({ max: 10 }).withMessage('currency no puede exceder 10 caracteres'),
+        .isLength({ max: 40 }).withMessage('currency no puede exceder 40 caracteres'),
     (0, express_validator_1.body)('issuer')
         .notEmpty().withMessage('issuer es obligatorio')
         .isString().withMessage('issuer debe ser texto')

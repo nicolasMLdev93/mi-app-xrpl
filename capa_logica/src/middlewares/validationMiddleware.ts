@@ -1,3 +1,4 @@
+// src/middlewares/validationMiddleware.ts
 import { body, param, validationResult } from "express-validator";
 import { Request, Response, NextFunction } from "express";
 
@@ -101,7 +102,7 @@ export const trustLineValidationRules = [
   body('currency')
     .notEmpty().withMessage('currency es obligatorio')
     .isString().withMessage('currency debe ser texto')
-    .isLength({ max: 10 }).withMessage('currency no puede exceder 10 caracteres'),
+    .isLength({ max: 40 }).withMessage('currency no puede exceder 40 caracteres'), // 🔥 CAMBIADO: 10 → 40
 
   body('issuer')
     .notEmpty().withMessage('issuer es obligatorio')

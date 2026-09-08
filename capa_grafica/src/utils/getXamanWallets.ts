@@ -32,7 +32,10 @@ export const getXamanWallets = async (): Promise<XamanWallet[]> => {
 
     const wallets: XamanWallet[] = [
       { address, name: "Wallet Principal (Xaman)" },
-      { address: secondWallet.classicAddress, name: "Wallet Secundaria (Xaman)" },
+      {
+        address: secondWallet.classicAddress,
+        name: "Wallet Secundaria (Xaman)",
+      },
     ];
 
     console.log("✅ Wallets obtenidas de Xaman:", wallets);
