@@ -55,7 +55,7 @@ const obtenerBilleteras = async (req, res) => {
             return;
         }
         const billeteras = await models_1.Billetera.findAll({
-            where: { user_id: userId },
+            where: { user_id: userId, is_active: true },
             order: [['createdAt', 'DESC']],
         });
         res.status(200).json({

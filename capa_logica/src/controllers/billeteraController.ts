@@ -62,7 +62,7 @@ export const obtenerBilleteras = async (req: Request, res: Response): Promise<vo
 
     // Buscar todas las billeteras del usuario
     const billeteras = await Billetera.findAll({
-      where: { user_id: userId },
+      where: { user_id: userId,  is_active: true },
       order: [['createdAt', 'DESC']], // Ordenar por fecha de creación (más reciente primero)
     });
 

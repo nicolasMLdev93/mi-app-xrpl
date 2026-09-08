@@ -1,5 +1,6 @@
 // src/components/Resume.tsx
 import { useState } from "react";
+import { getXamanWallets } from "../utils/getXamanWallets";
 
 interface Wallet {
   id: number;
@@ -7,7 +8,6 @@ interface Wallet {
   name: string | null;
   network: string;
   is_active: boolean;
-  // ... otros campos si los necesitas
 }
 
 interface ResumeProps {
@@ -18,26 +18,60 @@ interface ResumeProps {
 }
 
 const Resume = ({ wallets, balances, loading, onAddWallet }: ResumeProps) => {
-  // Obtener usuario desde localStorage
   const userString = localStorage.getItem("user");
   const user = userString ? JSON.parse(userString) : null;
 
-  // Estado del modal
   const [showModal, setShowModal] = useState(false);
   const [newAddress, setNewAddress] = useState("");
   const [walletName, setWalletName] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState("");
 
-  // Función para conectar nueva wallet
-  const handleConnect = async () => {
-    // Validar dirección
+  // =========================================
+  //  CONECTAR CON XAMAN (MÚLTIPLES WALLETS)
+  // =========================================
+  const handleConnectXaman = async () => {
+    setIsConnecting(true);
+    setError("");
+
+    try {
+      const xamanWallets = await getXamanWallets();
+      if (xamanWallets.length === 0) {
+        setError("No se obtuvieron billeteras desde Xaman.");
+        return;
+      }
+
+      let successCount = 0;
+      for (const wallet of xamanWallets) {
+        const added = await onAddWallet(wallet.address, wallet.name || "Wallet Xaman");
+        if (added) successCount++;
+      }
+
+      if (successCount === 0) {
+        setError("No se pudo agregar ninguna billetera.");
+      } else {
+        setShowModal(false);
+        setNewAddress("");
+        setWalletName("");
+        console.log(`✅ ${successCount} billetera(s) agregada(s) exitosamente.`);
+      }
+    } catch (err) {
+      console.error("Error al conectar con Xaman:", err);
+      setError("Error al conectar con Xaman.");
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  // =========================================
+  //  CONECTAR MANUAL (modal)
+  // =========================================
+  const handleConnectManual = async () => {
     const trimmedAddress = newAddress.trim();
     if (!trimmedAddress) {
       setError("La dirección es obligatoria");
       return;
     }
-    // Validación simple XRP (comienza con r y longitud ~34)
     if (!/^r[0-9a-zA-Z]{33,34}$/.test(trimmedAddress)) {
       setError("Dirección XRP inválida. Debe comenzar con 'r' y tener ~34 caracteres.");
       return;
@@ -53,10 +87,10 @@ const Resume = ({ wallets, balances, loading, onAddWallet }: ResumeProps) => {
         setNewAddress("");
         setWalletName("");
       } else {
-        setError("No se pudo agregar la billetera. Intenta de nuevo.");
+        setError("No se pudo agregar la billetera.");
       }
     } catch (err) {
-      console.error("Error al conectar:", err);
+      console.error("Error al conectar manual:", err);
       setError("Error al conectar la billetera.");
     } finally {
       setIsConnecting(false);
@@ -67,7 +101,6 @@ const Resume = ({ wallets, balances, loading, onAddWallet }: ResumeProps) => {
   const shortAddress = (addr: string) =>
     addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "";
 
-  // Saludo personalizado
   const greeting = user ? `Hola, ${user.username}` : "Hola";
 
   return (
@@ -77,12 +110,15 @@ const Resume = ({ wallets, balances, loading, onAddWallet }: ResumeProps) => {
         <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
           {greeting}
         </h2>
-        <p className="text-gray-400 text-sm">Tus billeteras:</p>
+        <p className="text-gray-400 text-sm">Tus billeteras XRP conectadas</p>
       </div>
 
       {/* Lista de wallets */}
       {loading ? (
-        <div className="text-center text-gray-400 py-10">Cargando billeteras...</div>
+        <div className="text-center text-gray-400 py-10">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500 mb-2"></div>
+          <p>Cargando balances...</p>
+        </div>
       ) : wallets.length === 0 ? (
         <div className="bg-white/5 rounded-xl p-8 text-center border border-white/10">
           <p className="text-gray-400">No tienes billeteras conectadas.</p>
@@ -130,17 +166,37 @@ const Resume = ({ wallets, balances, loading, onAddWallet }: ResumeProps) => {
         </div>
       )}
 
-      {/* Botón para agregar nueva wallet */}
-      <button
-        onClick={() => setShowModal(true)}
-        className="w-full py-3 rounded-xl bg-white/5 border border-dashed border-white/20 hover:bg-white/10 hover:border-indigo-500/50 transition-all text-gray-300 font-medium flex items-center justify-center gap-2"
-      >
-        <span className="text-xl">+</span> Conectar nueva wallet
-      </button>
+      {/* Botones para conectar */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={handleConnectXaman}
+          disabled={isConnecting}
+          className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all text-white font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {isConnecting ? (
+            <>
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Conectando...
+            </>
+          ) : (
+            <>
+              <span className="text-xl">🔗</span> Conectar con Xaman
+            </>
+          )}
+        </button>
 
-      {/* =========================================
-          MODAL PARA CONECTAR NUEVA BILLETERA
-      ========================================= */}
+        <button
+          onClick={() => setShowModal(true)}
+          className="flex-1 py-3 rounded-xl bg-white/5 border border-dashed border-white/20 hover:bg-white/10 hover:border-indigo-500/50 transition-all text-gray-300 font-medium flex items-center justify-center gap-2"
+        >
+          <span className="text-xl">+</span> Ingresar dirección manual
+        </button>
+      </div>
+
+      {/* Modal para dirección manual */}
       {showModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
@@ -150,12 +206,8 @@ const Resume = ({ wallets, balances, loading, onAddWallet }: ResumeProps) => {
             className="bg-white/10 border border-white/20 rounded-2xl p-6 w-full max-w-md backdrop-blur-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-xl font-semibold text-white mb-2">
-              Conectar nueva wallet
-            </h3>
-            <p className="text-sm text-gray-400 mb-4">
-              Ingresa la dirección XRP que deseas agregar a tu cuenta.
-            </p>
+            <h3 className="text-xl font-semibold text-white mb-2">Conectar nueva wallet</h3>
+            <p className="text-sm text-gray-400 mb-4">Ingresa la dirección XRP que deseas agregar a tu cuenta.</p>
 
             {error && (
               <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm">
@@ -181,7 +233,7 @@ const Resume = ({ wallets, balances, loading, onAddWallet }: ResumeProps) => {
 
             <div className="flex flex-col sm:flex-row gap-3">
               <button
-                onClick={handleConnect}
+                onClick={handleConnectManual}
                 disabled={isConnecting}
                 className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all rounded-xl text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
