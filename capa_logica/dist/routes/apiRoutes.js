@@ -2,15 +2,25 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const authController_1 = require("../controllers/authController");
+const billeteraController_1 = require("../controllers/billeteraController");
+const trustLineController_1 = require("../controllers/trustLineController");
 const validationMiddleware_1 = require("../middlewares/validationMiddleware");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
-const billeteraController_1 = require("../controllers/billeteraController");
+const trustLineMiddleware_1 = require("../middlewares/trustLineMiddleware");
 const router = (0, express_1.Router)();
-router.post("/register", validationMiddleware_1.registerValidationRules, validationMiddleware_1.validate, authController_1.register);
-router.post("/login", validationMiddleware_1.loginValidationRules, validationMiddleware_1.validate, authController_1.login);
-router.post("/billeteras", authMiddleware_1.authenticate, validationMiddleware_1.billeteraValidationRules, validationMiddleware_1.validate, billeteraController_1.crearBilletera);
-router.get("/billeteras", authMiddleware_1.authenticate, billeteraController_1.obtenerBilleteras);
-router.get("/health", (_req, res) => {
-    res.json({ status: "ok", timestamp: new Date() });
+router.post('/register', validationMiddleware_1.registerValidationRules, validationMiddleware_1.validate, authController_1.register);
+router.post('/login', validationMiddleware_1.loginValidationRules, validationMiddleware_1.validate, authController_1.login);
+router.get('/billeteras', authMiddleware_1.authenticate, billeteraController_1.obtenerBilleteras);
+router.post('/billeteras', authMiddleware_1.authenticate, validationMiddleware_1.billeteraValidationRules, validationMiddleware_1.validate, billeteraController_1.crearBilletera);
+router.get('/billeteras/:wallet_id/trustlines', authMiddleware_1.authenticate, validationMiddleware_1.walletIdParamValidation, validationMiddleware_1.validate, trustLineMiddleware_1.verificarWallet, trustLineController_1.obtenerTrustLines);
+router.post('/trustlines', authMiddleware_1.authenticate, validationMiddleware_1.trustLineValidationRules, validationMiddleware_1.validate, trustLineController_1.crearTrustLine);
+router.put('/trustlines/:id', authMiddleware_1.authenticate, validationMiddleware_1.trustLineIdParamValidation, validationMiddleware_1.actualizarTrustLineValidationRules, validationMiddleware_1.validate, trustLineMiddleware_1.verificarTrustLine, trustLineController_1.actualizarTrustLine);
+router.delete('/trustlines/:id', authMiddleware_1.authenticate, validationMiddleware_1.trustLineIdParamValidation, validationMiddleware_1.validate, trustLineMiddleware_1.verificarTrustLine, trustLineController_1.eliminarTrustLine);
+router.post('/trustlines/:id/sync', authMiddleware_1.authenticate, validationMiddleware_1.trustLineIdParamValidation, validationMiddleware_1.validate, trustLineMiddleware_1.verificarTrustLine, trustLineController_1.sincronizarTrustLine);
+router.post('/trustlines/:id/prepare-limit-change', authMiddleware_1.authenticate, validationMiddleware_1.trustLineIdParamValidation, validationMiddleware_1.cambiarLimiteValidationRules, validationMiddleware_1.validate, trustLineMiddleware_1.verificarTrustLine, trustLineController_1.prepararCambioLimite);
+router.get('/trustlines/check/:address', authMiddleware_1.authenticate, trustLineController_1.verificarTrustLine);
+router.get('/balances/rlusd/:address', authMiddleware_1.authenticate, trustLineController_1.obtenerBalanceRLUSD);
+router.get('/health', (_req, res) => {
+    res.json({ status: 'ok', timestamp: new Date() });
 });
 exports.default = router;

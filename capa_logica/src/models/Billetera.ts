@@ -1,4 +1,5 @@
 import { DataTypes, Model, Optional, Sequelize } from 'sequelize';
+import TrustLine from './TrustLine'; // Importar para el tipo
 
 interface BilleteraAttributes {
   id: number;
@@ -8,11 +9,12 @@ interface BilleteraAttributes {
   name?: string | null;
   provider?: string | null;
   is_active: boolean;
+  has_rlusd_trustline?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-interface BilleteraCreationAttributes extends Optional<BilleteraAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+interface BilleteraCreationAttributes extends Optional<BilleteraAttributes, 'id' | 'createdAt' | 'updatedAt' | 'name' | 'provider' | 'has_rlusd_trustline'> {}
 
 class Billetera extends Model<BilleteraAttributes, BilleteraCreationAttributes> implements BilleteraAttributes {
   public id!: number;
@@ -22,8 +24,12 @@ class Billetera extends Model<BilleteraAttributes, BilleteraCreationAttributes> 
   public name!: string | null;
   public provider!: string | null;
   public is_active!: boolean;
+  public has_rlusd_trustline!: boolean;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
+
+  // ✅ Declarar la propiedad para que TypeScript la reconozca
+  public trustLines?: TrustLine[]; // Array de TrustLine (opcional)
 
   static initModel(sequelize: Sequelize): typeof Billetera {
     return Billetera.init(
@@ -35,6 +41,7 @@ class Billetera extends Model<BilleteraAttributes, BilleteraCreationAttributes> 
         name: { type: DataTypes.STRING(100), allowNull: true },
         provider: { type: DataTypes.STRING(50), allowNull: true },
         is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+        has_rlusd_trustline: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
         createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
         updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
       },

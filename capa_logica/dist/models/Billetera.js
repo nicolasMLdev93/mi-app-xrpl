@@ -11,6 +11,7 @@ class Billetera extends sequelize_1.Model {
             name: { type: sequelize_1.DataTypes.STRING(100), allowNull: true },
             provider: { type: sequelize_1.DataTypes.STRING(50), allowNull: true },
             is_active: { type: sequelize_1.DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+            has_rlusd_trustline: { type: sequelize_1.DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
             createdAt: { type: sequelize_1.DataTypes.DATE, allowNull: false, defaultValue: sequelize_1.DataTypes.NOW },
             updatedAt: { type: sequelize_1.DataTypes.DATE, allowNull: false, defaultValue: sequelize_1.DataTypes.NOW },
         }, {

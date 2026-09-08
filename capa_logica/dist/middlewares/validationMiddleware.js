@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validate = exports.billeteraValidationRules = exports.loginValidationRules = exports.registerValidationRules = void 0;
+exports.validate = exports.walletIdParamValidation = exports.trustLineIdParamValidation = exports.cambiarLimiteValidationRules = exports.actualizarTrustLineValidationRules = exports.trustLineValidationRules = exports.billeteraValidationRules = exports.loginValidationRules = exports.registerValidationRules = void 0;
 const express_validator_1 = require("express-validator");
 exports.registerValidationRules = [
     (0, express_validator_1.body)("username")
@@ -67,6 +67,50 @@ exports.billeteraValidationRules = [
         .optional()
         .isBoolean()
         .withMessage("is_active debe ser booleano"),
+];
+exports.trustLineValidationRules = [
+    (0, express_validator_1.body)('wallet_id')
+        .notEmpty().withMessage('wallet_id es obligatorio')
+        .isInt().withMessage('wallet_id debe ser un número entero'),
+    (0, express_validator_1.body)('currency')
+        .notEmpty().withMessage('currency es obligatorio')
+        .isString().withMessage('currency debe ser texto')
+        .isLength({ max: 10 }).withMessage('currency no puede exceder 10 caracteres'),
+    (0, express_validator_1.body)('issuer')
+        .notEmpty().withMessage('issuer es obligatorio')
+        .isString().withMessage('issuer debe ser texto')
+        .isLength({ max: 255 }).withMessage('issuer no puede exceder 255 caracteres'),
+    (0, express_validator_1.body)('limit_amount')
+        .optional()
+        .isNumeric().withMessage('limit_amount debe ser un número')
+        .custom((value) => value > 0).withMessage('limit_amount debe ser mayor a 0'),
+];
+exports.actualizarTrustLineValidationRules = [
+    (0, express_validator_1.body)('limit_amount')
+        .optional()
+        .isNumeric().withMessage('limit_amount debe ser un número')
+        .custom((value) => value > 0).withMessage('limit_amount debe ser mayor a 0'),
+    (0, express_validator_1.body)('status')
+        .optional()
+        .isIn(['active', 'inactive', 'blocked']).withMessage('status debe ser active, inactive o blocked'),
+    (0, express_validator_1.body)('balance')
+        .optional()
+        .isNumeric().withMessage('balance debe ser un número')
+        .custom((value) => value >= 0).withMessage('balance no puede ser negativo'),
+];
+exports.cambiarLimiteValidationRules = [
+    (0, express_validator_1.body)('new_limit')
+        .notEmpty().withMessage('new_limit es obligatorio')
+        .isNumeric().withMessage('new_limit debe ser un número')
+        .custom((value) => value > 0).withMessage('new_limit debe ser mayor a 0'),
+];
+exports.trustLineIdParamValidation = [
+    (0, express_validator_1.param)('id')
+        .isInt().withMessage('ID de trust line inválido'),
+];
+exports.walletIdParamValidation = [
+    (0, express_validator_1.param)('wallet_id')
+        .isInt().withMessage('ID de wallet inválido'),
 ];
 const validate = (req, res, next) => {
     const errors = (0, express_validator_1.validationResult)(req);

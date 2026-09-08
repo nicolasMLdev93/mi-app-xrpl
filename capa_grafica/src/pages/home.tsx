@@ -18,9 +18,7 @@ import HistoryComponent from "../components/history_component";
 import SettingsComponent from "../components/settings_component";
 import HomeBackground from "../components/home_background";
 import SideBar from "../components/side_bar";
-import createRLUSDTrustline from "../utils/create_rlusd_trustline";
-import simulatedWallet from "../utils/simulated_wallet";
-import { getRLUSDBalance } from "../utils/get_rlusd_balance";
+import { API_BASE_URL } from "../utils/config";
 
 type Tab = "dashboard" | "send" | "receive" | "history" | "settings";
 
@@ -34,6 +32,7 @@ interface Wallet {
   is_active: boolean;
   createdAt: string;
   updatedAt: string;
+  trustLines?: any[];
 }
 
 const Home = () => {
@@ -47,8 +46,6 @@ const Home = () => {
     Record<string, { xrp: number; rlusd: number }>
   >({});
   const [loading, setLoading] = useState(true);
-
-  // Set para rastrear wallets nuevas (para simular RLUSD)
   const newWalletsRef = useRef<Set<string>>(new Set());
 
   if (!token) {
@@ -56,24 +53,21 @@ const Home = () => {
     return null;
   }
 
-  // =========================================
-  // OBTENER BALANCES (recibe lista de wallets)
-  // =========================================
   const fetchBalances = async (walletsList: Wallet[]) => {
     const newBalances: Record<string, { xrp: number; rlusd: number }> = {};
-
     for (const wallet of walletsList) {
       try {
         const { getBalance } = await import("../utils/get_balance");
         const xrp = await getBalance(wallet.address);
 
-        // Consultar RLUSD real
-        let rlusd = await getRLUSDBalance(wallet.address);
+        const rlusdRes = await fetch(`${API_BASE_URL}/balances/rlusd/${wallet.address}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const rlusdData = await rlusdRes.json();
+        let rlusd = rlusdData.balance || 0;
 
-        // Si es una wallet nueva y no tiene RLUSD, asignamos 10 para prueba
         if (newWalletsRef.current.has(wallet.address) && rlusd === 0) {
           rlusd = 10;
-          console.log(`🎯 Simulando 10 RLUSD para wallet nueva: ${wallet.address}`);
         }
 
         newBalances[wallet.address] = { xrp, rlusd };
@@ -82,24 +76,20 @@ const Home = () => {
         newBalances[wallet.address] = { xrp: 0, rlusd: 0 };
       }
     }
-
     setBalances(newBalances);
   };
 
-  // =========================================
-  // OBTENER WALLETS Y LUEGO BALANCES
-  // =========================================
   const fetchWallets = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:3000/api/billeteras", {
+      const response = await fetch(`${API_BASE_URL}/billeteras`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
       if (data.success) {
-        setWallets(data.data);
-        // Cargar balances de esas wallets y esperar a que termine
-        await fetchBalances(data.data);
+        const activeWallets = data.data.filter((w: Wallet) => w.is_active === true);
+        setWallets(activeWallets);
+        await fetchBalances(activeWallets);
       } else {
         console.error("Error al obtener wallets:", data.message);
       }
@@ -110,20 +100,13 @@ const Home = () => {
     }
   };
 
-  // =========================================
-  // EFECTOS
-  // =========================================
   useEffect(() => {
     fetchWallets();
   }, []);
 
-  // =========================================
-  // FUNCIÓN PARA AGREGAR NUEVA BILLETERA
-  // =========================================
   const addWallet = async (address: string, name?: string) => {
     try {
-      // 1. Guardar wallet en el backend
-      const response = await fetch("http://localhost:3000/api/billeteras", {
+      const response = await fetch(`${API_BASE_URL}/billeteras`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -143,33 +126,33 @@ const Home = () => {
         return false;
       }
 
-      // 2. Marcar como nueva para simular RLUSD
-      newWalletsRef.current.add(address);
-
-      // 3. Crear Trust Line de RLUSD (usando la wallet simulada)
+      // Crear Trust Line RLUSD automáticamente
+      const walletId = data.data.id;
       try {
-        const walletInstance = simulatedWallet.getWallet();
-        if (walletInstance && walletInstance.classicAddress === address) {
-          const result = await createRLUSDTrustline(
-            address,
-            async (tx) => {
-              const signed = await simulatedWallet.signTransaction(tx);
-              return { tx_blob: signed.tx_blob, hash: signed.hash };
-            }
-          );
-          if (result.success) {
-            console.log("✅ Trust Line RLUSD creado exitosamente");
-          } else {
-            console.warn("⚠️ No se pudo crear Trust Line RLUSD:", result.error);
-          }
+        const trustResponse = await fetch(`${API_BASE_URL}/trustlines`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            wallet_id: walletId,
+            currency: "RLUSD",
+            issuer: "rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV",
+            limit_amount: 1000000,
+          }),
+        });
+        const trustData = await trustResponse.json();
+        if (trustData.success) {
+          console.log("✅ Trust Line RLUSD creado automáticamente");
         } else {
-          console.log("ℹ️ Para wallets manuales, debes crear el Trust Line manualmente en https://tryrlusd.com/");
+          console.warn("⚠️ No se pudo crear Trust Line automático:", trustData.message);
         }
       } catch (error) {
-        console.error("❌ Error al crear Trust Line:", error);
+        console.error("Error al crear Trust Line automático:", error);
       }
 
-      // 4. Recargar la lista de wallets (incluye balances)
+      newWalletsRef.current.add(address);
       await fetchWallets();
       return true;
     } catch (error) {
@@ -179,7 +162,121 @@ const Home = () => {
   };
 
   // =========================================
-  // SIDEBAR RESPONSIVE
+  // FUNCIONES PARA TRUST LINES
+  // =========================================
+  const createTrustLine = async (walletId: number, currency: string, issuer: string, limitAmount: number) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/trustlines`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          wallet_id: walletId,
+          currency,
+          issuer,
+          limit_amount: limitAmount,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        await fetchWallets();
+        return true;
+      } else {
+        console.error('Error al crear trust line:', data.message);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error de red al crear trust line:', error);
+      return false;
+    }
+  };
+
+  const updateTrustLine = async (trustLineId: number, updates: { limit_amount?: number; status?: string; balance?: number }) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/trustlines/${trustLineId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+      });
+      const data = await response.json();
+      if (data.success) {
+        await fetchWallets();
+        return true;
+      } else {
+        console.error('Error al actualizar trust line:', data.message);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error de red al actualizar trust line:', error);
+      return false;
+    }
+  };
+
+  const deleteTrustLine = async (trustLineId: number) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/trustlines/${trustLineId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        await fetchWallets();
+        return true;
+      } else {
+        console.error('Error al eliminar trust line:', data.message);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error de red al eliminar trust line:', error);
+      return false;
+    }
+  };
+
+  const syncTrustLine = async (trustLineId: number) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/trustlines/${trustLineId}/sync`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        await fetchWallets();
+        return data;
+      } else {
+        console.error('Error al sincronizar trust line:', data.message);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error de red al sincronizar trust line:', error);
+      return null;
+    }
+  };
+
+  const prepareLimitChange = async (trustLineId: number, newLimit: number) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/trustlines/${trustLineId}/prepare-limit-change`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ new_limit: newLimit }),
+      });
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error al preparar cambio de límite:', error);
+      return null;
+    }
+  };
+
+  // =========================================
+  // SIDEBAR
   // =========================================
   useEffect(() => {
     const handleResize = () => {
@@ -192,9 +289,7 @@ const Home = () => {
 
   const firstWallet = wallets.length > 0 ? wallets[0] : null;
   const address = firstWallet?.address || "";
-  const shortAddress = address
-    ? `${address.slice(0, 6)}...${address.slice(-4)}`
-    : "Sin billetera";
+  const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Sin billetera";
   const balance = firstWallet ? balances[firstWallet.address]?.xrp || 0 : 0;
 
   const menuItems = [
@@ -214,10 +309,16 @@ const Home = () => {
             balances={balances}
             loading={loading}
             onAddWallet={addWallet}
+            onRefreshWallets={fetchWallets}
+            onCreateTrustLine={createTrustLine}
+            onUpdateTrustLine={updateTrustLine}
+            onDeleteTrustLine={deleteTrustLine}
+            onSyncTrustLine={syncTrustLine}
+            onPrepareLimitChange={prepareLimitChange}
           />
         );
       case "send":
-        return <SendComponent onBalanceUpdate={() => fetchBalances(wallets)} />;
+        return <SendComponent onBalanceUpdate={() => fetchWallets()} />;
       case "receive":
         return <ReciveComponent address={address} />;
       case "history":
@@ -229,55 +330,34 @@ const Home = () => {
     }
   };
 
-  // =========================================
-  // RENDER
-  // =========================================
   return (
     <div className="min-h-screen bg-black text-white flex relative overflow-hidden">
       <HomeBackground />
-
       <SideBar
         sidebarOpen={sidebarOpen}
         menuItems={menuItems}
         activeTab={activeTab}
         setActiveTab={(tab: string) => {
-          if (
-            tab === "dashboard" ||
-            tab === "send" ||
-            tab === "receive" ||
-            tab === "history" ||
-            tab === "settings"
-          ) {
+          if (tab === "dashboard" || tab === "send" || tab === "receive" || tab === "history" || tab === "settings") {
             setActiveTab(tab as Tab);
           }
         }}
+        address={address}
         shortAddress={shortAddress}
         balance={balance}
         navigate={navigate}
       />
-
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}
-
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
         className="fixed top-4 left-4 z-50 p-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 text-white hover:bg-white/20 transition-colors md:hidden"
       >
         {sidebarOpen ? <FiX className="text-xl" /> : <FiMenu className="text-xl" />}
       </button>
-
-      <main
-        className={`flex-1 transition-all duration-300 ${
-          sidebarOpen ? "md:ml-64" : "ml-0"
-        } p-6 md:p-8 relative z-10 min-h-screen`}
-      >
-        <div className="max-w-4xl mx-auto pt-12 md:pt-0">
-          {renderContent()}
-        </div>
+      <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? "md:ml-64" : "ml-0"} p-6 md:p-8 relative z-10 min-h-screen`}>
+        <div className="max-w-4xl mx-auto pt-12 md:pt-0">{renderContent()}</div>
       </main>
     </div>
   );

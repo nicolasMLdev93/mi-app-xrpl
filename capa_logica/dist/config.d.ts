@@ -1,8 +1,8 @@
 export declare const config: {
     port: string | number;
     nodeEnv: string;
-    jwtSecret: string | undefined;
-    jwtExpiresIn: string | undefined;
+    jwtSecret: string;
+    jwtExpiresIn: string;
     db: {
         username: string;
         password: string;
@@ -12,3 +12,6 @@ export declare const config: {
         dialect: "mysql";
     };
 };
+export declare const XRPL_TESTNET = "wss://s.altnet.rippletest.net:51233";
+export declare const RLUSD_ISSUER = "rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV";
+export declare const RLUSD_CURRENCY = "RLUSD";
