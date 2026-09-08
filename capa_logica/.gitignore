@@ -2,12 +2,12 @@
 #  Dependencias (SIEMPRE)
 # ========================
 node_modules/
-**/node_modules/          # Por si hay node_modules en subcarpetas
+**/node_modules/
 
 # ========================
-#  Código compilado
+#  Código compilado (TypeScript, etc.)
 # ========================
-dist/                     # Salida de TypeScript
+dist/
 *.tsbuildinfo
 
 # ========================
@@ -75,5 +75,5 @@ temp/
 # ========================
 #  Bloqueadores de versiones (opcional)
 # ========================
-package-lock.json          # Algunos equipos lo ignoran
-yarn.lock                  # Lo mismo
+package-lock.json
+yarn.lock
