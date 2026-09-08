@@ -104,6 +104,9 @@ const Home = () => {
     fetchWallets();
   }, []);
 
+  // =========================================
+  // AGREGAR BILLETERA (con Trust Line automático SOLO si no existe)
+  // =========================================
   const addWallet = async (address: string, name?: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/billeteras`, {
@@ -126,27 +129,39 @@ const Home = () => {
         return false;
       }
 
-      // Crear Trust Line RLUSD automáticamente
       const walletId = data.data.id;
       try {
-        const trustResponse = await fetch(`${API_BASE_URL}/trustlines`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            wallet_id: walletId,
-            currency: "RLUSD",
-            issuer: "rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV",
-            limit_amount: 1000000,
-          }),
+        const checkRes = await fetch(`${API_BASE_URL}/billeteras/${walletId}/trustlines`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
-        const trustData = await trustResponse.json();
-        if (trustData.success) {
-          console.log("✅ Trust Line RLUSD creado automáticamente");
+        const checkData = await checkRes.json();
+
+        const exists = checkData.data?.some(
+          (tl: any) => tl.currency === "RLUSD" && tl.issuer === "rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV"
+        );
+
+        if (!exists) {
+          const trustResponse = await fetch(`${API_BASE_URL}/trustlines`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              wallet_id: walletId,
+              currency: "RLUSD",
+              issuer: "rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV",
+              limit_amount: 1000000,
+            }),
+          });
+          const trustData = await trustResponse.json();
+          if (trustData.success) {
+            console.log("✅ Trust Line RLUSD creado automáticamente");
+          } else {
+            console.warn("⚠️ No se pudo crear Trust Line automático:", trustData.message);
+          }
         } else {
-          console.warn("⚠️ No se pudo crear Trust Line automático:", trustData.message);
+          console.log("ℹ️ Trust Line RLUSD ya existe para esta wallet");
         }
       } catch (error) {
         console.error("Error al crear Trust Line automático:", error);
@@ -162,7 +177,7 @@ const Home = () => {
   };
 
   // =========================================
-  // FUNCIONES PARA TRUST LINES
+  // CREAR TRUST LINE (devuelve objeto con success, message, code)
   // =========================================
   const createTrustLine = async (walletId: number, currency: string, issuer: string, limitAmount: number) => {
     try {
@@ -180,40 +195,23 @@ const Home = () => {
         }),
       });
       const data = await response.json();
-      if (data.success) {
+      if (response.ok && data.success) {
         await fetchWallets();
-        return true;
+        return { success: true };
       } else {
-        console.error('Error al crear trust line:', data.message);
-        return false;
+        return { 
+          success: false, 
+          message: data.message || 'Error al crear trust line',
+          code: response.status 
+        };
       }
     } catch (error) {
       console.error('Error de red al crear trust line:', error);
-      return false;
-    }
-  };
-
-  const updateTrustLine = async (trustLineId: number, updates: { limit_amount?: number; status?: string; balance?: number }) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/trustlines/${trustLineId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(updates),
-      });
-      const data = await response.json();
-      if (data.success) {
-        await fetchWallets();
-        return true;
-      } else {
-        console.error('Error al actualizar trust line:', data.message);
-        return false;
-      }
-    } catch (error) {
-      console.error('Error de red al actualizar trust line:', error);
-      return false;
+      return { 
+        success: false, 
+        message: 'Error de conexión con el servidor',
+        code: 500 
+      };
     }
   };
 
@@ -257,24 +255,6 @@ const Home = () => {
     }
   };
 
-  const prepareLimitChange = async (trustLineId: number, newLimit: number) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/trustlines/${trustLineId}/prepare-limit-change`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ new_limit: newLimit }),
-      });
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Error al preparar cambio de límite:', error);
-      return null;
-    }
-  };
-
   // =========================================
   // SIDEBAR
   // =========================================
@@ -311,10 +291,8 @@ const Home = () => {
             onAddWallet={addWallet}
             onRefreshWallets={fetchWallets}
             onCreateTrustLine={createTrustLine}
-            onUpdateTrustLine={updateTrustLine}
             onDeleteTrustLine={deleteTrustLine}
             onSyncTrustLine={syncTrustLine}
-            onPrepareLimitChange={prepareLimitChange}
           />
         );
       case "send":

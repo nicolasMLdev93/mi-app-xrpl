@@ -14,7 +14,7 @@ interface TrustLine {
   issuer: string;
   limit_amount: number;
   balance: number;
-  status: 'active' | 'inactive' | 'blocked';
+  status: "active" | "inactive" | "blocked";
   createdAt: string;
   updatedAt: string;
 }
@@ -34,7 +34,12 @@ interface ResumeProps {
   loading: boolean;
   onAddWallet: (address: string, name?: string) => Promise<boolean>;
   onRefreshWallets: () => void;
-  onCreateTrustLine: (walletId: number, currency: string, issuer: string, limitAmount: number) => Promise<boolean>;
+  onCreateTrustLine: (
+    walletId: number,
+    currency: string,
+    issuer: string,
+    limitAmount: number,
+  ) => Promise<{ success: boolean; message?: string; code?: number }>;
   onDeleteTrustLine: (trustLineId: number) => Promise<boolean>;
   onSyncTrustLine: (trustLineId: number) => Promise<any>;
 }
@@ -67,12 +72,20 @@ const Resume = ({
 
   // Estados para el modal de gestión
   const [showManageModal, setShowManageModal] = useState(false);
-  const [selectedTrustLine, setSelectedTrustLine] = useState<TrustLine | null>(null);
+  const [selectedTrustLine, setSelectedTrustLine] = useState<TrustLine | null>(
+    null,
+  );
 
   // Estados para el modal de confirmación
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState("");
-  const [confirmAction, setConfirmAction] = useState<(() => Promise<void>) | null>(null);
+  const [confirmAction, setConfirmAction] = useState<
+    (() => Promise<void>) | null
+  >(null);
+
+  // Estado para el modal de advertencia (duplicado)
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [warningMessage, setWarningMessage] = useState("");
 
   // Estados de carga para botones
   const [syncing, setSyncing] = useState(false);
@@ -98,6 +111,17 @@ const Resume = ({
     setSuccess(null);
   };
 
+  // Formato del balance
+  // ✅ Versión robusta que maneja strings y números
+  const formatBalance = (value: any, decimals: number = 2): string => {
+    // Convertir a número (si es string o número)
+    const num = typeof value === "number" ? value : parseFloat(value);
+    // Si no es un número válido, devolver "0.00"
+    if (isNaN(num)) return "0.00";
+    // Formatear con decimales y separador de miles
+    return num.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
   // =========================================
   // CONECTAR CON XAMAN (CON VERIFICACIÓN DE DUPLICADOS)
   // =========================================
@@ -113,7 +137,7 @@ const Resume = ({
         return;
       }
 
-      const existingAddresses = new Set(wallets.map(w => w.address));
+      const existingAddresses = new Set(wallets.map((w) => w.address));
       let addedCount = 0;
       let skippedCount = 0;
 
@@ -122,15 +146,22 @@ const Resume = ({
           skippedCount++;
           continue;
         }
-        const added = await onAddWallet(wallet.address, wallet.name || "Wallet Xaman");
+        const added = await onAddWallet(
+          wallet.address,
+          wallet.name || "Wallet Xaman",
+        );
         if (added) addedCount++;
       }
 
       if (addedCount === 0 && skippedCount > 0) {
-        setSuccess(`✅ Todas las billeteras ya están conectadas. (${skippedCount} wallet(s))`);
+        setSuccess(
+          `✅ Todas las billeteras ya están conectadas. (${skippedCount} wallet(s))`,
+        );
         onRefreshWallets();
       } else if (addedCount > 0) {
-        setSuccess(`✅ ${addedCount} billetera(s) agregada(s) exitosamente. (${skippedCount} ya existían)`);
+        setSuccess(
+          `✅ ${addedCount} billetera(s) agregada(s) exitosamente. (${skippedCount} ya existían)`,
+        );
         setShowModal(false);
         setNewAddress("");
         setWalletName("");
@@ -156,7 +187,9 @@ const Resume = ({
       return;
     }
     if (!/^r[0-9a-zA-Z]{33,34}$/.test(trimmedAddress)) {
-      setError("Dirección XRP inválida. Debe comenzar con 'r' y tener ~34 caracteres.");
+      setError(
+        "Dirección XRP inválida. Debe comenzar con 'r' y tener ~34 caracteres.",
+      );
       return;
     }
 
@@ -165,7 +198,10 @@ const Resume = ({
     setSuccess(null);
 
     try {
-      const success = await onAddWallet(trimmedAddress, walletName.trim() || undefined);
+      const success = await onAddWallet(
+        trimmedAddress,
+        walletName.trim() || undefined,
+      );
       if (success) {
         setShowModal(false);
         setNewAddress("");
@@ -196,7 +232,9 @@ const Resume = ({
     try {
       const deleted = await onDeleteTrustLine(selectedTrustLine.id);
       if (deleted) {
-        setSuccess(`✅ Trust Line de ${selectedTrustLine.currency} eliminado correctamente`);
+        setSuccess(
+          `✅ Trust Line de ${selectedTrustLine.currency} eliminado correctamente`,
+        );
         setShowManageModal(false);
         setSelectedTrustLine(null);
         onRefreshWallets();
@@ -225,9 +263,14 @@ const Resume = ({
     try {
       const result = await onSyncTrustLine(selectedTrustLine.id);
       if (result && result.success) {
-        setSuccess(`✅ Trust Line sincronizado correctamente. Balance: ${result.realBalance || 0} RLUSD`);
+        setSuccess(
+          `✅ Trust Line sincronizado correctamente. Balance: ${result.realBalance || 0} RLUSD`,
+        );
         if (result.data) {
-          setSelectedTrustLine({ ...selectedTrustLine, balance: result.data.balance });
+          setSelectedTrustLine({
+            ...selectedTrustLine,
+            balance: result.data.balance,
+          });
         }
         onRefreshWallets();
       } else {
@@ -242,7 +285,7 @@ const Resume = ({
   };
 
   // =========================================
-  // CREAR TRUST LINE (SOLO RLUSD)
+  // CREAR TRUST LINE - verificar duplicado ANTES de llamar al backend
   // =========================================
   const handleCreateTrustLine = async () => {
     const currency = RLUSD_CURRENCY;
@@ -257,20 +300,49 @@ const Resume = ({
       return;
     }
 
+    // 🔥 Verificar si la wallet seleccionada ya tiene un trust line de este token
+    const wallet = wallets.find((w) => w.id === selectedWalletId);
+    const existingTrustLine = wallet?.trustLines?.find(
+      (tl) => tl.currency === currency && tl.issuer === issuer,
+    );
+
+    if (existingTrustLine) {
+      // Mostrar el modal de advertencia y cerrar el modal de creación
+      setWarningMessage(
+        `YA tienes un trust line para el token ${currency} en esta billetera.`,
+      );
+      setShowWarningModal(true);
+      setShowCreateModal(false);
+      setNewLimitAmount(1000000);
+      setSelectedWalletId(null);
+      return; // ✅ No hacemos la petición al backend
+    }
+
+    // ✅ Si no existe, proceder a crear
     setIsConnecting(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const created = await onCreateTrustLine(selectedWalletId, currency, issuer, newLimitAmount);
-      if (created) {
-        setSuccess(`✅ Trust Line RLUSD creado exitosamente. Límite: ${newLimitAmount}`);
+      const result = await onCreateTrustLine(
+        selectedWalletId,
+        currency,
+        issuer,
+        newLimitAmount,
+      );
+      if (result.success) {
+        setSuccess(
+          `✅ Trust Line RLUSD creado exitosamente. Límite: ${newLimitAmount}`,
+        );
         setShowCreateModal(false);
         setNewLimitAmount(1000000);
         setSelectedWalletId(null);
         onRefreshWallets();
       } else {
-        setError("Error al crear Trust Line. Verifica que la wallet tenga XRP para la comisión.");
+        setError(
+          result.message ||
+            "Error al crear Trust Line. Verifica que la wallet tenga XRP para la comisión.",
+        );
       }
     } catch (error) {
       console.error("Error al crear:", error);
@@ -284,12 +356,15 @@ const Resume = ({
   // ABRIR CONFIRMACIÓN PARA ELIMINAR
   // =========================================
   const openConfirmDelete = () => {
-    setConfirmMessage(`¿Seguro que deseas eliminar el Trust Line de ${selectedTrustLine?.currency}?`);
+    setConfirmMessage(
+      `¿Seguro que deseas eliminar el Trust Line de ${selectedTrustLine?.currency}?`,
+    );
     setConfirmAction(() => handleDeleteTrustLine);
     setShowConfirmModal(true);
   };
 
-  const shortAddress = (addr: string) => (addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "");
+  const shortAddress = (addr: string) =>
+    addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "";
   const greeting = user ? `Hola, ${user.username}` : "Hola";
 
   return (
@@ -320,7 +395,9 @@ const Resume = ({
       ) : wallets.length === 0 ? (
         <div className="bg-white/5 rounded-xl p-8 text-center border border-white/10">
           <p className="text-gray-400">No tienes billeteras activas.</p>
-          <p className="text-sm text-gray-500 mt-1">Agrega una usando los botones de abajo.</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Agrega una usando los botones de abajo.
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -351,10 +428,10 @@ const Resume = ({
                   <div className="text-right">
                     <div className="text-sm text-gray-400">Balance</div>
                     <div className="text-sm font-medium text-green-400">
-                      {bal.xrp.toFixed(4)} XRP
+                      {formatBalance(bal.xrp)} XRP
                     </div>
                     <div className="text-sm font-medium text-blue-400">
-                      {bal.rlusd.toFixed(4)} RLUSD
+                      {formatBalance(bal.rlusd, 2)} RLUSD
                     </div>
                   </div>
                 </div>
@@ -362,7 +439,9 @@ const Resume = ({
                 {/* Trust Lines */}
                 <div className="mt-3 pt-3 border-t border-white/10">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-gray-400 uppercase tracking-wider">Trust Lines</p>
+                    <p className="text-xs text-gray-400 uppercase tracking-wider">
+                      Trust Lines
+                    </p>
                     <button
                       onClick={() => {
                         setSelectedWalletId(wallet.id);
@@ -385,15 +464,16 @@ const Resume = ({
                             {tl.currency} (emisor: {tl.issuer.slice(0, 6)}...)
                           </span>
                           <span className="text-xs text-gray-400 ml-2">
-                            Límite: {tl.limit_amount} | Balance: {tl.balance}
+                            Límite: {formatBalance(tl.limit_amount)} | Balance:{" "}
+                            {formatBalance(tl.balance)}
                           </span>
                           <span
                             className={`text-xs px-2 py-0.5 rounded-full ml-2 ${
                               tl.status === "active"
                                 ? "bg-green-500/20 text-green-400"
                                 : tl.status === "inactive"
-                                ? "bg-yellow-500/20 text-yellow-400"
-                                : "bg-red-500/20 text-red-400"
+                                  ? "bg-yellow-500/20 text-yellow-400"
+                                  : "bg-red-500/20 text-red-400"
                             }`}
                           >
                             {tl.status}
@@ -409,7 +489,9 @@ const Resume = ({
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-gray-500 mt-2">No hay Trust Lines activos</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      No hay Trust Lines activos
+                    </p>
                   )}
                 </div>
               </div>
@@ -474,7 +556,9 @@ const Resume = ({
             className="bg-white/10 border border-white/20 rounded-2xl p-6 w-full max-w-md backdrop-blur-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-xl font-semibold text-white mb-2">Conectar nueva wallet</h3>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              Conectar nueva wallet
+            </h3>
             <p className="text-sm text-gray-400 mb-4">
               Ingresa la dirección XRP que deseas agregar.
             </p>
@@ -550,7 +634,9 @@ const Resume = ({
             className="bg-white/10 border border-white/20 rounded-2xl p-6 w-full max-w-md backdrop-blur-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-xl font-semibold text-white mb-2">🔗 Crear Trust Line RLUSD</h3>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              🔗 Crear Trust Line RLUSD
+            </h3>
             <p className="text-sm text-gray-400 mb-4">
               Crea un Trust Line para recibir RLUSD en esta billetera.
             </p>
@@ -569,7 +655,8 @@ const Resume = ({
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Límite <span className="text-xs text-gray-500">(Limit Amount)</span>
+                  Límite{" "}
+                  <span className="text-xs text-gray-500">(Limit Amount)</span>
                 </label>
                 <input
                   type="number"
@@ -588,7 +675,8 @@ const Resume = ({
                   className="w-full p-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Cantidad máxima de RLUSD que deseas aceptar (debe ser mayor a 0).
+                  Cantidad máxima de RLUSD que deseas aceptar (debe ser mayor a
+                  0).
                 </p>
               </div>
 
@@ -647,8 +735,8 @@ const Resume = ({
 
             <div className="mt-4 p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
               <p className="text-xs text-indigo-300">
-                ⚠️ Necesitas al menos ~0.000012 XRP en tu wallet para pagar la comisión de la
-                transacción.
+                ⚠️ Necesitas al menos ~0.000012 XRP en tu wallet para pagar la
+                comisión de la transacción.
               </p>
             </div>
           </div>
@@ -666,7 +754,9 @@ const Resume = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-white">🔧 Gestionar Trust Line</h3>
+              <h3 className="text-xl font-semibold text-white">
+                🔧 Gestionar Trust Line
+              </h3>
               <button
                 onClick={() => setShowManageModal(false)}
                 className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
@@ -680,12 +770,15 @@ const Resume = ({
               <div className="bg-white/5 rounded-lg p-3 border border-white/10 space-y-1">
                 <div className="flex justify-between">
                   <span className="text-xs text-gray-400">Moneda</span>
-                  <span className="text-sm text-white font-medium">{selectedTrustLine.currency}</span>
+                  <span className="text-sm text-white font-medium">
+                    {selectedTrustLine.currency}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-gray-400">Emisor</span>
                   <span className="text-sm text-white font-mono">
-                    {selectedTrustLine.issuer.slice(0, 6)}...{selectedTrustLine.issuer.slice(-4)}
+                    {selectedTrustLine.issuer.slice(0, 6)}...
+                    {selectedTrustLine.issuer.slice(-4)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -707,8 +800,8 @@ const Resume = ({
                       selectedTrustLine.status === "active"
                         ? "bg-green-500/20 text-green-400"
                         : selectedTrustLine.status === "inactive"
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : "bg-red-500/20 text-red-400"
+                          ? "bg-yellow-500/20 text-yellow-400"
+                          : "bg-red-500/20 text-red-400"
                     }`}
                   >
                     {selectedTrustLine.status}
@@ -743,7 +836,6 @@ const Resume = ({
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
           onClick={() => {
-            // No cerrar si se está eliminando
             if (!deleting) setShowConfirmModal(false);
           }}
         >
@@ -751,7 +843,9 @@ const Resume = ({
             className="bg-white/10 border border-white/20 rounded-2xl p-6 w-full max-w-md backdrop-blur-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-xl font-semibold text-white mb-2">⚠️ Confirmar eliminación</h3>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              ⚠️ Confirmar eliminación
+            </h3>
             <p className="text-sm text-gray-300 mb-4">{confirmMessage}</p>
             <div className="flex flex-col sm:flex-row gap-3">
               <button
@@ -797,6 +891,31 @@ const Resume = ({
                 Cancelar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de advertencia (Trust Line duplicado) - sin error 409 */}
+      {showWarningModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => setShowWarningModal(false)}
+        >
+          <div
+            className="bg-white/10 border border-yellow-500/30 rounded-2xl p-6 w-full max-w-md backdrop-blur-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">⚠️</span>
+              <h3 className="text-xl font-semibold text-white">Atención</h3>
+            </div>
+            <p className="text-sm text-gray-300 mb-4">{warningMessage}</p>
+            <button
+              onClick={() => setShowWarningModal(false)}
+              className="w-full py-2.5 bg-yellow-600 hover:bg-yellow-700 rounded-xl text-white font-medium"
+            >
+              Aceptar
+            </button>
           </div>
         </div>
       )}
