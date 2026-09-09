@@ -15,6 +15,13 @@ window.addEventListener("unhandledrejection", (event) => {
   }
 });
 
+window.addEventListener("unhandledrejection", (event) => {
+  if (event.reason?.message?.includes("message channel closed")) {
+    event.preventDefault();
+    console.warn("⚠️ Error de extensión ignorado:", event.reason);
+  }
+});
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>

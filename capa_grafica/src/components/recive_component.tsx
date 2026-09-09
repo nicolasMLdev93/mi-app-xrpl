@@ -1,25 +1,108 @@
-const recive_component = ({ address }) => {
+// src/components/ReciveComponent.tsx
+import { useState, useEffect } from "react";
+import xrpl from "xrpl";
+import QRCode from "react-qr-code";
+
+interface ReciveComponentProps {
+  address: string;
+}
+
+const ReciveComponent = ({ address }: ReciveComponentProps) => {
+  const [copied, setCopied] = useState(false);
+  const [isValidAddress, setIsValidAddress] = useState(true);
+
+  // Validar dirección al montar
+  useEffect(() => {
+    if (address) {
+      const valid = xrpl.isValidAddress(address);
+      setIsValidAddress(valid);
+    }
+  }, [address]);
+
+  // Copiar dirección al portapapeles
+  const handleCopy = async () => {
+    if (!address) return;
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch (error) {
+      console.error("Error al copiar:", error);
+    }
+  };
+
+  // Si la dirección no es válida, mostrar error
+  if (!address || !isValidAddress) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-400">❌ Dirección inválida o no disponible</p>
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-        Recibir XRP
-      </h2>
-      <p className="text-gray-400 text-sm mb-4">
-        Comparte tu dirección para recibir fondos
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-white">📥 Recibir fondos</h3>
+      <p className="text-sm text-gray-400">
+        Comparte tu dirección pública para recibir XRP o RLUSD.
       </p>
+
+      {/* QR Code con react-qr-code */}
+      <div className="flex justify-center">
+        <div className="p-4 bg-white rounded-xl shadow-lg shadow-indigo-500/10">
+          <QRCode
+            value={address}
+            size={200}
+            level="H"
+            bgColor="#ffffff"
+            fgColor="#000000"
+          />
+        </div>
+      </div>
+
+      {/* Dirección */}
       <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-        <div className="font-mono text-sm text-gray-200 break-all bg-black/30 p-3 rounded-lg border border-white/10">
+        <p className="text-xs text-gray-500 mb-1">Tu dirección pública:</p>
+        <div className="font-mono text-sm text-gray-200 break-all bg-black/30 p-3 rounded-lg border border-white/10 select-all">
           {address}
         </div>
+
+        {/* Botón copiar */}
         <button
-          onClick={() => navigator.clipboard?.writeText(address)}
-          className="mt-3 text-sm text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-2"
+          onClick={handleCopy}
+          className="mt-3 w-full py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white font-medium transition-colors flex items-center justify-center gap-2"
         >
-          📋 Copiar dirección
+          {copied ? (
+            <>
+              <svg
+                className="w-5 h-5 text-green-400"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              ¡Copiado!
+            </>
+          ) : (
+            <>📋 Copiar dirección</>
+          )}
         </button>
+      </div>
+
+      {/* Información de seguridad */}
+      <div className="text-xs text-gray-500 space-y-1 border-t border-white/10 pt-3">
+        <p>🔒 Esta es tu dirección pública. Es segura para compartir.</p>
+        <p>⚠️ Nunca compartas tu clave privada o seed.</p>
+        <p>💰 Solo recibirás fondos en la red de prueba (Testnet).</p>
       </div>
     </div>
   );
 };
 
-export default recive_component;
+export default ReciveComponent;

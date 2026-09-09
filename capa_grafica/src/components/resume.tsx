@@ -3,8 +3,11 @@ import { useState, useEffect } from "react";
 import { getXamanWallets } from "../utils/getXamanWallets";
 import { FiSettings, FiX } from "react-icons/fi";
 import { RLUSD_CURRENCY, RLUSD_ISSUER } from "../utils/config";
+import SendComponent from "./send_component";
+import ReciveComponent from "./recive_component";
+import { jsPDF } from "jspdf";
 
-// 🔥 Helper para mostrar el nombre legible del token
+// Helper para mostrar nombre legible del token
 const getCurrencyDisplay = (currencyHex: string): string => {
   if (currencyHex === RLUSD_CURRENCY) return "RLUSD";
   return currencyHex;
@@ -90,6 +93,25 @@ const Resume = ({
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [warningMessage, setWarningMessage] = useState("");
 
+  // Estados para el modal de envío
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [selectedWalletForSend, setSelectedWalletForSend] =
+    useState<Wallet | null>(null);
+
+  // Estados para el modal de recibir
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [selectedWalletForReceive, setSelectedWalletForReceive] =
+    useState<Wallet | null>(null);
+
+  // Estados para el modal de éxito
+  const [successModalData, setSuccessModalData] = useState<{
+    amount: string;
+    destination: string;
+    hash: string;
+    date: string;
+  } | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
   // Estados de carga para botones
   const [syncing, setSyncing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -122,7 +144,7 @@ const Resume = ({
   };
 
   // =========================================
-  // CONECTAR CON XAMAN (CON VERIFICACIÓN DE DUPLICADOS)
+  // CONECTAR CON XAMAN
   // =========================================
   const handleConnectXaman = async () => {
     setIsConnecting(true);
@@ -219,7 +241,7 @@ const Resume = ({
   };
 
   // =========================================
-  // ELIMINAR TRUST LINE (con spinner en modal)
+  // ELIMINAR TRUST LINE
   // =========================================
   const handleDeleteTrustLine = async () => {
     if (!selectedTrustLine) return;
@@ -284,11 +306,11 @@ const Resume = ({
   };
 
   // =========================================
-  // CREAR TRUST LINE - usando la constante hexadecimal
+  // CREAR TRUST LINE
   // =========================================
   const handleCreateTrustLine = async () => {
-    const currency = RLUSD_CURRENCY; // "524C555344..."
-    const issuer = RLUSD_ISSUER;     // "rQhWct..."
+    const currency = RLUSD_CURRENCY;
+    const issuer = RLUSD_ISSUER;
 
     if (!selectedWalletId) {
       setError("Selecciona una wallet primero");
@@ -299,7 +321,6 @@ const Resume = ({
       return;
     }
 
-    // 🔥 Verificar duplicado comparando con el hex
     const wallet = wallets.find((w) => w.id === selectedWalletId);
     const existingTrustLine = wallet?.trustLines?.find(
       (tl) => tl.currency === currency && tl.issuer === issuer,
@@ -316,7 +337,6 @@ const Resume = ({
       return;
     }
 
-    // ✅ Si no existe, proceder a crear
     setIsConnecting(true);
     setError(null);
     setSuccess(null);
@@ -359,6 +379,111 @@ const Resume = ({
     );
     setConfirmAction(() => handleDeleteTrustLine);
     setShowConfirmModal(true);
+  };
+
+  // =========================================
+  // ABRIR MODAL DE ENVÍO
+  // =========================================
+  const openSendModal = (wallet: Wallet) => {
+    setSelectedWalletForSend(wallet);
+    setShowSendModal(true);
+  };
+
+  // =========================================
+  // ABRIR MODAL DE RECIBIR
+  // =========================================
+  const openReceiveModal = (wallet: Wallet) => {
+    setSelectedWalletForReceive(wallet);
+    setShowReceiveModal(true);
+  };
+
+  // =========================================
+  // MANEJAR ÉXITO DE TRANSACCIÓN
+  // =========================================
+  const handleTransactionSuccess = (data: {
+    amount: string;
+    destination: string;
+    hash: string;
+    date: string;
+  }) => {
+    setSuccessModalData(data);
+    setShowSuccessModal(true);
+  };
+
+  // =========================================
+  // CERRAR AMBOS MODALES (éxito + envío)
+  // =========================================
+  const closeSendAndSuccess = () => {
+    setShowSuccessModal(false);
+    setShowSendModal(false);
+    setSuccessModalData(null);
+    setSelectedWalletForSend(null);
+  };
+
+  // =========================================
+  // DESCARGAR RECIBO (desde el modal de éxito)
+  // =========================================
+  const downloadSuccessReceipt = () => {
+    if (!successModalData) return;
+    const pdf = new jsPDF();
+    const { amount, destination, hash, date } = successModalData;
+
+    pdf.setFontSize(22);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("XRPL TESTNET", 105, 25, { align: "center" });
+    pdf.setFontSize(15);
+    pdf.setFont("helvetica", "normal");
+    pdf.text("RECIBO DE TRANSFERENCIA", 105, 35, { align: "center" });
+    pdf.line(20, 45, 190, 45);
+
+    pdf.setFontSize(14);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("ESTADO", 20, 60);
+    pdf.setFont("helvetica", "normal");
+    pdf.text("TRANSACCIÓN EXITOSA", 75, 60);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.text("MONTO", 20, 80);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(`${amount} XRP`, 75, 80);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.text("DESTINO", 20, 100);
+    pdf.setFont("helvetica", "normal");
+    const destLines = pdf.splitTextToSize(destination, 110);
+    pdf.text(destLines, 75, 100);
+    const destHeight = destLines.length * 7;
+
+    const hashY = 120 + destHeight;
+    pdf.setFont("helvetica", "bold");
+    pdf.text("HASH", 20, hashY);
+    pdf.setFont("helvetica", "normal");
+    const hashLines = pdf.splitTextToSize(hash, 110);
+    pdf.text(hashLines, 75, hashY);
+    const hashHeight = hashLines.length * 7;
+
+    const dateY = hashY + hashHeight + 15;
+    pdf.setFont("helvetica", "bold");
+    pdf.text("FECHA", 20, dateY);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(date, 75, dateY);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.text("RED", 20, dateY + 20);
+    pdf.setFont("helvetica", "normal");
+    pdf.text("XRPL Testnet", 75, dateY + 20);
+
+    pdf.line(20, dateY + 35, 190, dateY + 35);
+    pdf.setFontSize(10);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(
+      "Comprobante generado por la wallet XRPL Testnet",
+      105,
+      dateY + 50,
+      { align: "center" },
+    );
+
+    pdf.save(`xrpl-recibo-${hash.substring(0, 8)}.pdf`);
   };
 
   const shortAddress = (addr: string) =>
@@ -432,6 +557,22 @@ const Resume = ({
                       {formatBalance(bal.rlusd)} RLUSD
                     </div>
                   </div>
+                </div>
+
+                {/* Botones de acción */}
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => openSendModal(wallet)}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    📤 Enviar XRP
+                  </button>
+                  <button
+                    onClick={() => openReceiveModal(wallet)}
+                    className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    📥 Recibir
+                  </button>
                 </div>
 
                 {/* Trust Lines */}
@@ -548,11 +689,11 @@ const Resume = ({
       {/* Modal para dirección manual */}
       {showModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
           onClick={() => setShowModal(false)}
         >
           <div
-            className="bg-white/10 border border-white/20 rounded-2xl p-6 w-full max-w-md backdrop-blur-xl"
+            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-white/10 border border-white/20 rounded-2xl p-6 backdrop-blur-xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-xl font-semibold text-white mb-2">
@@ -623,14 +764,14 @@ const Resume = ({
         </div>
       )}
 
-      {/* Modal para crear Trust Line CON onBlur */}
+      {/* Modal para crear Trust Line */}
       {showCreateModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
           onClick={() => setShowCreateModal(false)}
         >
           <div
-            className="bg-white/10 border border-white/20 rounded-2xl p-6 w-full max-w-md backdrop-blur-xl max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-white/10 border border-white/20 rounded-2xl p-6 backdrop-blur-xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-xl font-semibold text-white mb-2">
@@ -652,7 +793,6 @@ const Resume = ({
                 </p>
               </div>
 
-              {/* 🔥 CAMPO DE LÍMITE CON onBlur */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
                   Límite{" "}
@@ -672,7 +812,6 @@ const Resume = ({
                     }
                   }}
                   onBlur={() => {
-                    // Al perder el foco, convertir a entero sin decimales
                     const cleanValue = Math.floor(newLimitAmount);
                     if (!isNaN(cleanValue) && cleanValue > 0) {
                       setNewLimitAmount(cleanValue);
@@ -750,14 +889,14 @@ const Resume = ({
         </div>
       )}
 
-      {/* Modal de Gestión de Trust Line (sin cambiar límite) */}
+      {/* Modal de Gestión de Trust Line */}
       {showManageModal && selectedTrustLine && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
           onClick={() => setShowManageModal(false)}
         >
           <div
-            className="bg-white/10 border border-white/20 rounded-2xl p-6 w-full max-w-md backdrop-blur-xl"
+            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-white/10 border border-white/20 rounded-2xl p-6 backdrop-blur-xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -773,7 +912,6 @@ const Resume = ({
             </div>
 
             <div className="space-y-4">
-              {/* Información del Trust Line */}
               <div className="bg-white/5 rounded-lg p-3 border border-white/10 space-y-1">
                 <div className="flex justify-between">
                   <span className="text-xs text-gray-400">Moneda</span>
@@ -816,7 +954,6 @@ const Resume = ({
                 </div>
               </div>
 
-              {/* Solo acciones: Sincronizar y Eliminar */}
               <div className="flex flex-col gap-3 pt-2">
                 <button
                   onClick={handleSyncTrustLine}
@@ -838,16 +975,16 @@ const Resume = ({
         </div>
       )}
 
-      {/* Modal de confirmación para eliminar CON SPINNER */}
+      {/* Modal de confirmación para eliminar */}
       {showConfirmModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
           onClick={() => {
             if (!deleting) setShowConfirmModal(false);
           }}
         >
           <div
-            className="bg-white/10 border border-white/20 rounded-2xl p-6 w-full max-w-md backdrop-blur-xl"
+            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-white/10 border border-white/20 rounded-2xl p-6 backdrop-blur-xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-xl font-semibold text-white mb-2">
@@ -905,11 +1042,11 @@ const Resume = ({
       {/* Modal de advertencia (Trust Line duplicado) */}
       {showWarningModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
           onClick={() => setShowWarningModal(false)}
         >
           <div
-            className="bg-white/10 border border-yellow-500/30 rounded-2xl p-6 w-full max-w-md backdrop-blur-xl"
+            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-white/10 border border-yellow-500/30 rounded-2xl p-6 backdrop-blur-xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 mb-2">
@@ -923,6 +1060,166 @@ const Resume = ({
             >
               Aceptar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 🔥 MODAL DE ENVÍO (centrado correctamente) */}
+      {showSendModal && selectedWalletForSend && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          onClick={() => {
+            if (!showSuccessModal) {
+              setShowSendModal(false);
+              setSelectedWalletForSend(null);
+            }
+          }}
+        >
+          <div
+            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white/10 border border-white/20 rounded-2xl p-6 backdrop-blur-xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-white">
+                Enviar desde {selectedWalletForSend.name || "wallet"}
+              </h3>
+              <button
+                onClick={() => {
+                  if (!showSuccessModal) {
+                    setShowSendModal(false);
+                    setSelectedWalletForSend(null);
+                  }
+                }}
+                className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <FiX className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <SendComponent
+              walletAddress={selectedWalletForSend.address}
+              onBalanceUpdate={onRefreshWallets}
+              onTransactionSuccess={handleTransactionSuccess}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 🔥 MODAL DE RECIBIR */}
+      {showReceiveModal && selectedWalletForReceive && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          onClick={() => {
+            setShowReceiveModal(false);
+            setSelectedWalletForReceive(null);
+          }}
+        >
+          <div
+            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-white/10 border border-white/20 rounded-2xl p-6 backdrop-blur-xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-white">
+                Recibir en {selectedWalletForReceive.name || "wallet"}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowReceiveModal(false);
+                  setSelectedWalletForReceive(null);
+                }}
+                className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <FiX className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <ReciveComponent address={selectedWalletForReceive.address} />
+          </div>
+        </div>
+      )}
+
+      {/* 🔥 MODAL DE ÉXITO (se superpone al de envío) */}
+      {showSuccessModal && successModalData && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+          onClick={closeSendAndSuccess}
+        >
+          <div
+            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-[#111111] border border-green-500/30 rounded-2xl shadow-2xl shadow-green-500/10 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center mb-5">
+              <div className="flex items-center justify-center w-20 h-20 rounded-full bg-green-500/15 border-2 border-green-500/40">
+                <svg
+                  className="w-10 h-10 text-green-400"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-white mb-1">
+                ¡Transacción exitosa!
+              </h3>
+              <p className="text-gray-400 text-sm mb-6">
+                La transferencia de XRP fue procesada correctamente.
+              </p>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3 mb-6">
+              <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                <span className="text-gray-500 text-sm">Cantidad</span>
+                <span className="text-white font-semibold">
+                  {successModalData.amount} XRP
+                </span>
+              </div>
+              <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                <span className="text-gray-500 text-sm">Destino</span>
+                <span className="text-gray-300 text-xs font-mono break-all max-w-[180px] text-right">
+                  {successModalData.destination}
+                </span>
+              </div>
+              <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                <span className="text-gray-500 text-sm">Hash</span>
+                <span className="text-gray-300 text-xs font-mono break-all max-w-[180px] text-right">
+                  {successModalData.hash}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 text-sm">Fecha</span>
+                <span className="text-gray-300 text-sm">
+                  {successModalData.date}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-1">
+                <span className="text-gray-500 text-sm">Red</span>
+                <span className="text-indigo-400 text-sm font-medium">
+                  XRPL Testnet
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={downloadSuccessReceipt}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 shadow-lg shadow-green-500/20"
+              >
+                📄 Descargar recibo
+              </button>
+              <button
+                onClick={closeSendAndSuccess}
+                className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-medium hover:bg-white/10 transition-all duration-200"
+              >
+                Aceptar
+              </button>
+            </div>
           </div>
         </div>
       )}

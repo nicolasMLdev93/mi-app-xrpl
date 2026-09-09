@@ -12,7 +12,6 @@ import {
 } from "react-icons/fi";
 
 import Resume from "../components/resume";
-import SendComponent from "../components/send_component";
 import ReciveComponent from "../components/recive_component";
 import HistoryComponent from "../components/history_component";
 import SettingsComponent from "../components/settings_component";
@@ -303,8 +302,6 @@ const Home = () => {
 
   const menuItems = [
     { id: "dashboard", label: "Resumen", icon: FiHome },
-    { id: "send", label: "Enviar", icon: FiSend },
-    { id: "receive", label: "Recibir", icon: FiDownload },
     { id: "history", label: "Historial", icon: FiClock },
     { id: "settings", label: "Ajustes", icon: FiSettings },
   ];
@@ -324,8 +321,6 @@ const Home = () => {
             onSyncTrustLine={syncTrustLine}
           />
         );
-      case "send":
-        return <SendComponent onBalanceUpdate={() => fetchWallets()} />;
       case "receive":
         return <ReciveComponent address={address} />;
       case "history":

@@ -16,33 +16,24 @@ export const getXamanWallets = async (): Promise<XamanWallet[]> => {
     await client.connect();
     console.log("✅ Conectado.");
 
+    // 🔥 Generar SOLO UNA wallet (la principal)
     const address = await simulatedWallet.connect();
     console.log("👛 Address obtenido:", address);
 
+    // Fondear la wallet (si es nueva)
     const balance = await simulatedWallet.fund(client);
     console.log("💰 Balance fondeado:", balance, "XRP");
 
-    const secondWallet = xrpl.Wallet.generate();
-    try {
-      await client.fundWallet(secondWallet);
-      console.log("💰 Segunda wallet fondeada.");
-    } catch (e) {
-      console.warn("No se pudo fondear la segunda wallet.");
-    }
-
+    // Devuelve un array con una sola wallet
     const wallets: XamanWallet[] = [
       { address, name: "Wallet Principal (Xaman)" },
-      {
-        address: secondWallet.classicAddress,
-        name: "Wallet Secundaria (Xaman)",
-      },
     ];
 
-    console.log("✅ Wallets obtenidas de Xaman:", wallets);
+    console.log("✅ Wallet obtenida de Xaman:", wallets);
     return wallets;
   } catch (error) {
     console.error("❌ Error al conectar con Xaman:", error);
-    throw error;
+    return [];
   } finally {
     if (client.isConnected()) {
       await client.disconnect();
