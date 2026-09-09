@@ -123,7 +123,6 @@ const test_transaction = async ({
     // =========================================
 
     const prepared = await client.autofill(payment);
-
     console.log("📦 Transacción preparada:", JSON.stringify(prepared, null, 2));
 
     // =========================================

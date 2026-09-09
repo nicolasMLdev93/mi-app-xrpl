@@ -19,12 +19,12 @@ dist/
 
 # ========================
 #  Configuración de base de datos (con credenciales)
+#  - config.json (si lo usas) debe ignorarse porque contiene credenciales
+#  - config.js (que usa variables de entorno) NO debe ignorarse, debe subirse
 # ========================
 # Ignora cualquier archivo config.json dentro de carpetas config
 **/config/config.json
 **/config/*.json
-config/
-src/config/
 
 # ========================
 #  Logs

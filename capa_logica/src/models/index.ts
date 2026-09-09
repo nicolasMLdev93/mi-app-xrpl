@@ -1,5 +1,5 @@
 import { Sequelize } from 'sequelize';
-import config from '../config/config.json';
+import config from '../config/config.js'; 
 import Usuario from './Usuario';
 import Billetera from './Billetera';
 import Transaccion from './Transaccion';
@@ -52,7 +52,6 @@ console.log('✅ Modelos inicializados correctamente.');
 // 4. DEFINIR RELACIONES
 // =========================================
 
-// Usuario ↔ Billetera (1 a N)
 Usuario.hasMany(Billetera, {
   foreignKey: 'user_id',
   as: 'billeteras',
@@ -62,7 +61,6 @@ Billetera.belongsTo(Usuario, {
   as: 'usuario',
 });
 
-// Billetera ↔ Transaccion (1 a N)
 Billetera.hasMany(Transaccion, {
   foreignKey: 'wallet_id',
   as: 'transacciones',
@@ -72,10 +70,9 @@ Transaccion.belongsTo(Billetera, {
   as: 'billetera',
 });
 
-// 🔥 Billetera ↔ TrustLine (1 a N) – RELACIÓN CRÍTICA
 Billetera.hasMany(TrustLine, {
   foreignKey: 'wallet_id',
-  as: 'trustLines', // 👈 Alias usado en el controlador y frontend
+  as: 'trustLines',
 });
 TrustLine.belongsTo(Billetera, {
   foreignKey: 'wallet_id',
