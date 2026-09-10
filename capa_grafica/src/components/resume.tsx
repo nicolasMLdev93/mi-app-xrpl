@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import xrpl from "xrpl";
 import { getXamanWallets } from "../utils/getXamanWallets";
 import { FiSettings, FiX } from "react-icons/fi";
-import { RLUSD_CURRENCY, RLUSD_ISSUER } from "../utils/config";
+import { RLUSD_CURRENCY, RLUSD_ISSUER, XRPL_DEVNET } from "../utils/config";
 import SendComponent from "./send_component";
 import ReciveComponent from "./recive_component";
 import { jsPDF } from "jspdf";
@@ -36,11 +37,8 @@ interface ResumeProps {
   wallets: Wallet[];
   balances: Record<string, { xrp: number; rlusd: number }>;
   loading: boolean;
-
   onAddWallet: (address: string, name?: string) => Promise<boolean>;
-
   onRefreshWallets: () => void;
-
   onCreateTrustLine: (
     walletId: number,
     currency: string,
@@ -51,9 +49,7 @@ interface ResumeProps {
     message?: string;
     code?: number;
   }>;
-
   onDeleteTrustLine: (trustLineId: number) => Promise<boolean>;
-
   onSyncTrustLine: (trustLineId: number) => Promise<any>;
 }
 
@@ -113,6 +109,7 @@ const Resume = ({
     hash: string;
     date: string;
   } | null>(null);
+
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const [syncing, setSyncing] = useState(false);
@@ -126,15 +123,18 @@ const Resume = ({
       const timer = setTimeout(() => {
         setSuccess(null);
       }, 5000);
+
       return () => clearTimeout(timer);
     }
   }, [success]);
 
   const formatBalance = (value: any, decimals: number = 2): string => {
     const num = typeof value === "number" ? value : parseFloat(value);
+
     if (isNaN(num)) {
       return "0.00";
     }
+
     return num.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
@@ -230,7 +230,7 @@ const Resume = ({
       }
 
       if (addedCount === 0 && skippedCount > 0) {
-        setSuccess(`✅ Todas las billeteras ya están conectadas.`);
+        setSuccess("✅ Todas las billeteras ya están conectadas.");
         onRefreshWallets();
       } else if (addedCount > 0) {
         setSuccess(`✅ ${addedCount} billetera(s) agregada(s) exitosamente.`);
@@ -243,7 +243,9 @@ const Resume = ({
       }
     } catch (err: any) {
       console.error("Error al conectar con Xaman:", err);
+
       const msg = err?.message || "Error al conectar con Xaman.";
+
       if (checkSaturation(msg)) {
         showSaturationWarning(msg);
       } else {
@@ -265,11 +267,10 @@ const Resume = ({
       return;
     }
 
-    // 🔥 Validación 2: formato inválido → MODAL
-    if (!/^r[0-9a-zA-Z]{33,34}$/.test(trimmedAddress)) {
+    if (!xrpl.isValidAddress(trimmedAddress)) {
       showWalletError(
-        "Dirección XRP inválida",
-        "La dirección debe comenzar con 'r' y tener aproximadamente 34 caracteres alfanuméricos.",
+        "Billetera inexistente",
+        "La dirección ingresada no existe en XRPL Devnet. No se puede agregar una billetera que no esté creada en la red.",
       );
       return;
     }
@@ -278,7 +279,51 @@ const Resume = ({
     setError(null);
     setSuccess(null);
 
+    const client = new xrpl.Client(XRPL_DEVNET);
+
     try {
+      await client.connect();
+
+      try {
+        await client.request({
+          command: "account_info",
+          account: trimmedAddress,
+          ledger_index: "validated",
+        });
+      } catch (err: any) {
+        const errorCode =
+          err?.data?.error ||
+          err?.result?.error ||
+          err?.data?.error_code ||
+          err?.result?.error_code;
+
+        if (
+          errorCode === "actNotFound" ||
+          errorCode === "accountNotFound" ||
+          errorCode === "entryNotFound"
+        ) {
+          showWalletError(
+            "Billetera inexistente",
+            "La dirección ingresada no existe en XRPL Devnet. No se puede agregar una billetera que no esté creada en la red.",
+          );
+          return;
+        }
+
+        throw err;
+      }
+
+      const existingAddresses = new Set(
+        wallets.map((wallet) => wallet.address),
+      );
+
+      if (existingAddresses.has(trimmedAddress)) {
+        showWalletError(
+          "Billetera ya agregada",
+          "Esta billetera ya se encuentra agregada a tu cuenta.",
+        );
+        return;
+      }
+
       const added = await onAddWallet(
         trimmedAddress,
         walletName.trim() || undefined,
@@ -292,107 +337,32 @@ const Resume = ({
         onRefreshWallets();
       } else {
         showWalletError(
-          "No se pudo agregar la billetera",
-          "Verifica que la dirección sea correcta y que no esté ya registrada. Intenta nuevamente.",
+          "Billetera ya registrada en la base de datos global",
+          "Las billeteras de la Devnet son de acceso público: cualquiera puede consultarlas o conectarse a ellas. Esta dirección ya fue agregada por otro usuario en la base de datos, por lo que su clave pública está duplicada y no se puede volver a registrar.",
         );
       }
     } catch (err: any) {
-      console.error("Error al conectar manual:", err);
-      const msg = err?.message || "Error al conectar la billetera.";
+      console.error("Error al validar la billetera:", err);
+
+      const msg =
+        err?.message || "No fue posible verificar la billetera en XRPL Devnet.";
 
       if (checkSaturation(msg)) {
         showSaturationWarning(msg);
       } else {
-        showWalletError("Error al conectar la billetera", msg);
+        showWalletError(
+          "Error al verificar la billetera",
+          "No se pudo comprobar la existencia de esta dirección en XRPL Devnet. La billetera no fue agregada.",
+        );
       }
     } finally {
+      try {
+        if (client.isConnected()) {
+          await client.disconnect();
+        }
+      } catch {}
+
       setIsConnecting(false);
-    }
-  };
-
-  const handleDeleteTrustLine = async () => {
-    if (!selectedTrustLine) {
-      return;
-    }
-
-    setDeleting(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const deleted = await onDeleteTrustLine(selectedTrustLine.id);
-
-      if (deleted) {
-        setSuccess(
-          `✅ Trust Line de ${getCurrencyDisplay(
-            selectedTrustLine.currency,
-          )} eliminado correctamente`,
-        );
-        setShowManageModal(false);
-        setSelectedTrustLine(null);
-        onRefreshWallets();
-      } else {
-        setError("Error al eliminar Trust Line");
-      }
-    } catch (err: any) {
-      console.error("Error al eliminar:", err);
-      const msg = err?.message || "Error al eliminar Trust Line";
-      if (checkSaturation(msg)) {
-        showSaturationWarning(msg);
-      } else {
-        setError(msg);
-      }
-    } finally {
-      setDeleting(false);
-      setShowConfirmModal(false);
-    }
-  };
-
-  const handleSyncTrustLine = async () => {
-    if (!selectedTrustLine) {
-      return;
-    }
-
-    setSyncing(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const result = await onSyncTrustLine(selectedTrustLine.id);
-
-      if (result && result.success) {
-        setSuccess(
-          `✅ Trust Line sincronizado correctamente. Balance: ${formatBalance(
-            result.realBalance || 0,
-          )} RLUSD`,
-        );
-
-        if (result.data) {
-          setSelectedTrustLine({
-            ...selectedTrustLine,
-            balance: result.data.balance,
-          });
-        }
-
-        onRefreshWallets();
-      } else {
-        const msg = result?.message || "Error al sincronizar";
-        if (checkSaturation(msg)) {
-          showSaturationWarning(msg);
-        } else {
-          setError(msg);
-        }
-      }
-    } catch (err: any) {
-      console.error("Error al sincronizar:", err);
-      const msg = err?.message || "Error al sincronizar Trust Line";
-      if (checkSaturation(msg)) {
-        showSaturationWarning(msg);
-      } else {
-        setError(msg);
-      }
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -411,13 +381,14 @@ const Resume = ({
     }
 
     const wallet = wallets.find((w) => w.id === selectedWalletId);
+
     const existingTrustLine = wallet?.trustLines?.find(
       (tl) => tl.currency === currency && tl.issuer === issuer,
     );
 
     if (existingTrustLine) {
       setWarningMessage(
-        "YA tienes un trust line para el token RLUSD en esta billetera.",
+        "Ya tienes un trust line para el token RLUSD en esta billetera.",
       );
       setShowWarningModal(true);
       setShowCreateModal(false);
@@ -444,6 +415,7 @@ const Resume = ({
             newLimitAmount,
           )}`,
         );
+
         setShowCreateModal(false);
         setNewLimitAmount(1000000);
         setSelectedWalletId(null);
@@ -461,8 +433,10 @@ const Resume = ({
       }
     } catch (err: any) {
       console.error("Error al crear:", err);
+
       const msg =
         err?.message || "Error al crear Trust Line. Intenta de nuevo.";
+
       if (checkSaturation(msg)) {
         showSaturationWarning(msg);
       } else {
@@ -470,6 +444,81 @@ const Resume = ({
       }
     } finally {
       setIsConnecting(false);
+    }
+  };
+
+  const handleDeleteTrustLine = async () => {
+    if (!selectedTrustLine) {
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const deleted = await onDeleteTrustLine(selectedTrustLine.id);
+
+      if (deleted) {
+        setSuccess("✅ Trust Line eliminado exitosamente.");
+        setShowConfirmModal(false);
+        setShowManageModal(false);
+        setSelectedTrustLine(null);
+        onRefreshWallets();
+      } else {
+        setError("No se pudo eliminar el Trust Line.");
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Error al eliminar el Trust Line.";
+
+      if (checkSaturation(msg)) {
+        showSaturationWarning(msg);
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleSyncTrustLine = async () => {
+    if (!selectedTrustLine) {
+      return;
+    }
+
+    setSyncing(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const result = await onSyncTrustLine(selectedTrustLine.id);
+
+      if (result?.success === false) {
+        const msg = result?.message || "No se pudo sincronizar el Trust Line.";
+
+        if (checkSaturation(msg) || result?.code === 429) {
+          showSaturationWarning(msg);
+        } else {
+          setError(msg);
+        }
+
+        return;
+      }
+
+      setSuccess("✅ Balance del Trust Line sincronizado exitosamente.");
+      setShowManageModal(false);
+      setSelectedTrustLine(null);
+      onRefreshWallets();
+    } catch (err: any) {
+      const msg = err?.message || "Error al sincronizar el Trust Line.";
+
+      if (checkSaturation(msg)) {
+        showSaturationWarning(msg);
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -484,6 +533,7 @@ const Resume = ({
         selectedTrustLine?.currency || "",
       )}?`,
     );
+
     setConfirmAction(() => handleDeleteTrustLine);
     setShowConfirmModal(true);
   };
@@ -515,10 +565,6 @@ const Resume = ({
     setSelectedWalletForSend(null);
   };
 
-  // ==========================================================
-  // DESCARGAR RECIBO
-  // ==========================================================
-
   const downloadSuccessReceipt = () => {
     if (!successModalData) {
       return;
@@ -539,48 +585,62 @@ const Resume = ({
     pdf.setFontSize(14);
     pdf.setFont("helvetica", "bold");
     pdf.text("ESTADO", 20, 60);
+
     pdf.setFont("helvetica", "normal");
     pdf.text("TRANSACCIÓN EXITOSA", 75, 60);
 
     pdf.setFont("helvetica", "bold");
     pdf.text("MONTO", 20, 80);
+
     pdf.setFont("helvetica", "normal");
     pdf.text(`${amount} XRP`, 75, 80);
 
     pdf.setFont("helvetica", "bold");
     pdf.text("DESTINO", 20, 100);
+
     pdf.setFont("helvetica", "normal");
+
     const destLines = pdf.splitTextToSize(destination, 110);
     pdf.text(destLines, 75, 100);
-    const destHeight = destLines.length * 7;
 
+    const destHeight = destLines.length * 7;
     const hashY = 120 + destHeight;
+
     pdf.setFont("helvetica", "bold");
     pdf.text("HASH", 20, hashY);
+
     pdf.setFont("helvetica", "normal");
+
     const hashLines = pdf.splitTextToSize(hash, 110);
     pdf.text(hashLines, 75, hashY);
-    const hashHeight = hashLines.length * 7;
 
+    const hashHeight = hashLines.length * 7;
     const dateY = hashY + hashHeight + 15;
+
     pdf.setFont("helvetica", "bold");
     pdf.text("FECHA", 20, dateY);
+
     pdf.setFont("helvetica", "normal");
     pdf.text(date, 75, dateY);
 
     pdf.setFont("helvetica", "bold");
     pdf.text("RED", 20, dateY + 20);
+
     pdf.setFont("helvetica", "normal");
     pdf.text("XRPL Devnet", 75, dateY + 20);
 
     pdf.line(20, dateY + 35, 190, dateY + 35);
+
     pdf.setFontSize(10);
     pdf.setTextColor(100, 100, 100);
+
     pdf.text(
       "Comprobante generado por la wallet XRPL Devnet",
       105,
       dateY + 50,
-      { align: "center" },
+      {
+        align: "center",
+      },
     );
 
     pdf.save(`xrpl-devnet-recibo-${hash.substring(0, 8)}.pdf`);
@@ -597,18 +657,22 @@ const Resume = ({
         <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
           {greeting}
         </h2>
+
         <p className="text-gray-400 text-sm">Tus billeteras XRP activas</p>
       </div>
+
       {error && (
         <div className="w-full p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm">
           {error}
         </div>
       )}
+
       {success && (
         <div className="w-full p-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg text-sm">
           {success}
         </div>
       )}
+
       {loading ? (
         <div className="text-center text-gray-400 py-10">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500 mb-2"></div>
@@ -617,6 +681,7 @@ const Resume = ({
       ) : wallets.length === 0 ? (
         <div className="bg-white/5 rounded-xl p-8 text-center border border-white/10">
           <p className="text-gray-400">No tienes billeteras activas.</p>
+
           <p className="text-sm text-gray-500 mt-1">
             Agrega una usando los botones de abajo.
           </p>
@@ -624,7 +689,10 @@ const Resume = ({
       ) : (
         <div className="space-y-4">
           {wallets.map((wallet) => {
-            const bal = balances[wallet.address] || { xrp: 0, rlusd: 0 };
+            const bal = balances[wallet.address] || {
+              xrp: 0,
+              rlusd: 0,
+            };
 
             return (
               <div
@@ -635,15 +703,18 @@ const Resume = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full bg-indigo-400 inline-block"></span>
+
                       <span className="font-semibold text-white">
                         {wallet.name || "Wallet sin nombre"}
                       </span>
+
                       {!wallet.is_active && (
                         <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
                           inactiva
                         </span>
                       )}
                     </div>
+
                     <div className="font-mono text-sm text-gray-400 mt-1">
                       {shortAddress(wallet.address)}
                     </div>
@@ -651,9 +722,11 @@ const Resume = ({
 
                   <div className="text-right">
                     <div className="text-sm text-gray-400">Balance</div>
+
                     <div className="text-sm font-medium text-green-400">
                       {formatBalance(bal.xrp)} XRP
                     </div>
+
                     <div className="text-sm font-medium text-blue-400">
                       {formatBalance(bal.rlusd)} RLUSD
                     </div>
@@ -667,6 +740,7 @@ const Resume = ({
                   >
                     📤 Enviar XRP
                   </button>
+
                   <button
                     onClick={() => openReceiveModal(wallet)}
                     className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg text-xs font-medium transition-colors"
@@ -680,6 +754,7 @@ const Resume = ({
                     <p className="text-xs text-gray-400 uppercase tracking-wider">
                       Trust Lines
                     </p>
+
                     <button
                       onClick={() => {
                         setSelectedWalletId(wallet.id);
@@ -703,11 +778,13 @@ const Resume = ({
                             {tl.issuer.slice(0, 6)}
                             ...)
                           </span>
+
                           <span className="text-xs text-gray-400 ml-2">
                             Límite: {formatBalance(tl.limit_amount)}
                             {" | "}
                             Balance: {formatBalance(tl.balance)}
                           </span>
+
                           <span
                             className={`text-xs px-2 py-0.5 rounded-full ml-2 ${
                               tl.status === "active"
@@ -720,6 +797,7 @@ const Resume = ({
                             {tl.status}
                           </span>
                         </div>
+
                         <button
                           onClick={() => openManageModal(tl)}
                           className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
@@ -740,6 +818,7 @@ const Resume = ({
           })}
         </div>
       )}
+
       <div className="flex flex-col sm:flex-row gap-3">
         <button
           onClick={handleConnectXaman}
@@ -762,6 +841,7 @@ const Resume = ({
                   stroke="currentColor"
                   strokeWidth="4"
                 />
+
                 <path
                   className="opacity-75"
                   fill="currentColor"
@@ -786,6 +866,7 @@ const Resume = ({
           Ingresar dirección manual
         </button>
       </div>
+
       {showWalletErrorModal && (
         <div
           className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
@@ -817,6 +898,7 @@ const Resume = ({
               <h3 className="text-xl font-bold text-white mb-2">
                 {walletErrorTitle || "Error"}
               </h3>
+
               <p className="text-gray-300 text-sm mb-6">{walletErrorMessage}</p>
 
               <button
@@ -829,6 +911,7 @@ const Resume = ({
           </div>
         </div>
       )}
+
       {isSaturated && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
@@ -843,10 +926,12 @@ const Resume = ({
           >
             <div className="flex items-center gap-3 mb-3">
               <span className="text-3xl">⚠️</span>
+
               <h3 className="text-xl font-bold text-white">
                 Red Devnet congestionada
               </h3>
             </div>
+
             <p className="text-gray-200 text-sm mb-4">
               La red XRP Ledger Devnet está experimentando una alta demanda en
               este momento.
@@ -855,6 +940,7 @@ const Resume = ({
               {saturationMessage ||
                 "La transacción no pudo completarse porque la red está congestionada. Por favor, intenta nuevamente en unos minutos."}
             </p>
+
             <button
               onClick={() => {
                 setIsSaturated(false);
@@ -867,6 +953,7 @@ const Resume = ({
           </div>
         </div>
       )}
+
       {showModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -943,13 +1030,14 @@ const Resume = ({
                         stroke="currentColor"
                         strokeWidth="4"
                       />
+
                       <path
                         className="opacity-75"
                         fill="currentColor"
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       />
                     </svg>
-                    Conectando...
+                    Verificando...
                   </>
                 ) : (
                   "Conectar"
@@ -966,6 +1054,7 @@ const Resume = ({
           </div>
         </div>
       )}
+
       {showCreateModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -978,6 +1067,7 @@ const Resume = ({
             <h3 className="text-xl font-semibold text-white mb-2">
               🔗 Crear Trust Line RLUSD
             </h3>
+
             <p className="text-sm text-gray-400 mb-4">
               Crea un Trust Line para recibir RLUSD en esta billetera.
             </p>
@@ -987,8 +1077,10 @@ const Resume = ({
                 <p className="text-xs text-gray-400">Token</p>
                 <p className="text-white font-medium">RLUSD (Devnet)</p>
               </div>
+
               <div className="bg-white/5 rounded-lg p-3 border border-white/10">
                 <p className="text-xs text-gray-400">Emisor</p>
+
                 <p className="text-white font-mono text-sm break-all">
                   {RLUSD_ISSUER}
                 </p>
@@ -999,6 +1091,7 @@ const Resume = ({
                   Límite{" "}
                   <span className="text-xs text-gray-500">(Limit Amount)</span>
                 </label>
+
                 <input
                   type="number"
                   min="0.01"
@@ -1006,6 +1099,7 @@ const Resume = ({
                   value={newLimitAmount}
                   onChange={(e) => {
                     const val = parseFloat(e.target.value);
+
                     if (e.target.value === "" || val > 0) {
                       setNewLimitAmount(val || 0);
                     } else {
@@ -1014,6 +1108,7 @@ const Resume = ({
                   }}
                   onBlur={() => {
                     const cleanValue = Math.floor(newLimitAmount);
+
                     if (!isNaN(cleanValue) && cleanValue > 0) {
                       setNewLimitAmount(cleanValue);
                     }
@@ -1021,6 +1116,7 @@ const Resume = ({
                   placeholder="1000000"
                   className="w-full p-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                 />
+
                 <p className="text-xs text-gray-500 mt-1">
                   Cantidad máxima de RLUSD que deseas aceptar (debe ser mayor a
                   0).
@@ -1029,6 +1125,7 @@ const Resume = ({
 
               <div className="bg-white/5 rounded-lg p-3 border border-white/10">
                 <p className="text-xs text-gray-400">Wallet seleccionada:</p>
+
                 <p className="text-sm text-white font-medium">
                   {selectedWalletId
                     ? wallets.find((w) => w.id === selectedWalletId)?.name ||
@@ -1046,6 +1143,7 @@ const Resume = ({
               >
                 {isConnecting ? "Creando..." : "Crear Trust Line"}
               </button>
+
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="flex-1 py-3 bg-white/10 hover:bg-white/20 active:scale-95 transition-all rounded-xl text-white font-semibold"
@@ -1063,6 +1161,7 @@ const Resume = ({
           </div>
         </div>
       )}
+
       {showManageModal && selectedTrustLine && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1076,6 +1175,7 @@ const Resume = ({
               <h3 className="text-xl font-semibold text-white">
                 🔧 Gestionar Trust Line
               </h3>
+
               <button
                 onClick={() => setShowManageModal(false)}
                 className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
@@ -1088,31 +1188,40 @@ const Resume = ({
               <div className="bg-white/5 rounded-lg p-3 border border-white/10 space-y-1">
                 <div className="flex justify-between">
                   <span className="text-xs text-gray-400">Moneda</span>
+
                   <span className="text-sm text-white font-medium">
                     {getCurrencyDisplay(selectedTrustLine.currency)}
                   </span>
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-xs text-gray-400">Emisor</span>
+
                   <span className="text-sm text-white font-mono">
                     {selectedTrustLine.issuer.slice(0, 6)}...
                     {selectedTrustLine.issuer.slice(-4)}
                   </span>
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-xs text-gray-400">Límite</span>
+
                   <span className="text-sm text-blue-400 font-medium">
                     {formatBalance(selectedTrustLine.limit_amount)}
                   </span>
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-xs text-gray-400">Balance</span>
+
                   <span className="text-sm text-green-400 font-medium">
                     {formatBalance(selectedTrustLine.balance)}
                   </span>
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-xs text-gray-400">Estado</span>
+
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full ${
                       selectedTrustLine.status === "active"
@@ -1135,6 +1244,7 @@ const Resume = ({
                 >
                   {syncing ? "Sincronizando..." : "🔄 Sincronizar balance"}
                 </button>
+
                 <button
                   onClick={openConfirmDelete}
                   disabled={deleting}
@@ -1147,11 +1257,14 @@ const Resume = ({
           </div>
         </div>
       )}
+
       {showConfirmModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
           onClick={() => {
-            if (!deleting) setShowConfirmModal(false);
+            if (!deleting) {
+              setShowConfirmModal(false);
+            }
           }}
         >
           <div
@@ -1161,17 +1274,22 @@ const Resume = ({
             <h3 className="text-xl font-semibold text-white mb-2">
               ⚠️ Confirmar eliminación
             </h3>
+
             <p className="text-sm text-gray-300 mb-4">{confirmMessage}</p>
+
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => {
-                  if (confirmAction) confirmAction();
+                  if (confirmAction) {
+                    confirmAction();
+                  }
                 }}
                 disabled={deleting}
                 className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 rounded-xl text-white font-medium disabled:opacity-50"
               >
                 {deleting ? "Eliminando..." : "Sí, eliminar"}
               </button>
+
               <button
                 onClick={() => setShowConfirmModal(false)}
                 disabled={deleting}
@@ -1183,6 +1301,7 @@ const Resume = ({
           </div>
         </div>
       )}
+
       {showWarningModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1194,9 +1313,12 @@ const Resume = ({
           >
             <div className="flex items-center gap-2 mb-2">
               <span className="text-2xl">⚠️</span>
+
               <h3 className="text-xl font-semibold text-white">Atención</h3>
             </div>
+
             <p className="text-sm text-gray-300 mb-4">{warningMessage}</p>
+
             <button
               onClick={() => setShowWarningModal(false)}
               className="w-full py-2.5 bg-yellow-600 hover:bg-yellow-700 rounded-xl text-white font-medium"
@@ -1206,6 +1328,7 @@ const Resume = ({
           </div>
         </div>
       )}
+
       {showSendModal && selectedWalletForSend && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1224,6 +1347,7 @@ const Resume = ({
               <h3 className="text-xl font-semibold text-white">
                 Enviar desde {selectedWalletForSend.name || "wallet"}
               </h3>
+
               <button
                 onClick={() => {
                   if (!showSuccessModal) {
@@ -1245,6 +1369,7 @@ const Resume = ({
           </div>
         </div>
       )}
+
       {showReceiveModal && selectedWalletForReceive && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1261,6 +1386,7 @@ const Resume = ({
               <h3 className="text-xl font-semibold text-white">
                 Recibir en {selectedWalletForReceive.name || "wallet"}
               </h3>
+
               <button
                 onClick={() => {
                   setShowReceiveModal(false);
@@ -1271,10 +1397,12 @@ const Resume = ({
                 <FiX className="w-5 h-5 text-gray-400" />
               </button>
             </div>
+
             <ReciveComponent address={selectedWalletForReceive.address} />
           </div>
         </div>
       )}
+
       {showSuccessModal && successModalData && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
@@ -1306,6 +1434,7 @@ const Resume = ({
               <h3 className="text-2xl font-bold text-white mb-1">
                 ¡Transacción exitosa!
               </h3>
+
               <p className="text-gray-400 text-sm mb-6">
                 La transferencia de XRP fue procesada correctamente en XRPL
                 Devnet.
@@ -1315,30 +1444,39 @@ const Resume = ({
             <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3 mb-6">
               <div className="flex justify-between items-center border-b border-white/5 pb-2">
                 <span className="text-gray-500 text-sm">Cantidad</span>
+
                 <span className="text-white font-semibold">
                   {successModalData.amount} XRP
                 </span>
               </div>
+
               <div className="flex justify-between items-center border-b border-white/5 pb-2">
                 <span className="text-gray-500 text-sm">Destino</span>
+
                 <span className="text-gray-300 text-xs font-mono break-all max-w-[180px] text-right">
                   {successModalData.destination}
                 </span>
               </div>
+
               <div className="flex justify-between items-center border-b border-white/5 pb-2">
                 <span className="text-gray-500 text-sm">Hash</span>
+
                 <span className="text-gray-300 text-xs font-mono break-all max-w-[180px] text-right">
                   {successModalData.hash}
                 </span>
               </div>
+
               <div className="flex justify-between items-center">
                 <span className="text-gray-500 text-sm">Fecha</span>
+
                 <span className="text-gray-300 text-sm">
                   {successModalData.date}
                 </span>
               </div>
+
               <div className="flex justify-between items-center pt-1">
                 <span className="text-gray-500 text-sm">Red</span>
+
                 <span className="text-indigo-400 text-sm font-medium">
                   XRPL Devnet
                 </span>
@@ -1352,6 +1490,7 @@ const Resume = ({
               >
                 📄 Descargar recibo
               </button>
+
               <button
                 onClick={closeSendAndSuccess}
                 className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-medium hover:bg-white/10 transition-all duration-200"

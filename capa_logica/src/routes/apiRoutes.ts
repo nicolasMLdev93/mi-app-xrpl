@@ -30,6 +30,10 @@ import {
   verificarTrustLine,
   verificarWallet,
 } from "../middlewares/trustLineMiddleware";
+import { obtenerTransaccionesUsuario } from "../controllers/transaccionController";
+import {
+  transaccionesValidationRules,
+} from "../middlewares/transaccionValidationMiddleware";
 
 const router = Router();
 
@@ -116,6 +120,15 @@ router.get(
 );
 // Endpoint para obtener balance de rlusd
 router.get("/balances/rlusd/:address", authenticate, obtenerBalanceRLUSD);
+
+// Obtener las transacciones de un usuario determinado
+router.get(
+  "/transacciones",
+  authenticate,
+  transaccionesValidationRules,
+  validate,
+  obtenerTransaccionesUsuario,
+);
 
 router.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date() });

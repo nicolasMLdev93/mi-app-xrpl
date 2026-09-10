@@ -34,16 +34,19 @@ const SendComponent = ({
   const [showAddressError, setShowAddressError] = useState(false);
   const [showInsufficientFunds, setShowInsufficientFunds] = useState(false);
   const [showCongestionModal, setShowCongestionModal] = useState(false);
-
+  const [showPublicWalletModal, setShowPublicWalletModal] = useState(false);
   const [showConfirmSendModal, setShowConfirmSendModal] = useState(false);
 
   const address = walletAddress || sessionStorage.getItem("xrplPublicKey");
 
   const closeAllModals = () => {
+    if (isLoading) return;
+
     setShowAmountError(false);
     setShowAddressError(false);
     setShowInsufficientFunds(false);
     setShowCongestionModal(false);
+    setShowPublicWalletModal(false);
     setShowConfirmSendModal(false);
   };
 
@@ -60,23 +63,37 @@ const SendComponent = ({
     closeAllModals();
 
     const cleanDestination = destination.trim();
+
     if (!cleanDestination || !xrpl.isValidAddress(cleanDestination)) {
       setShowAddressError(true);
       return;
     }
 
     const numericAmount = Number(amount);
+
     if (!amount || !Number.isFinite(numericAmount) || numericAmount <= 0) {
       setShowAmountError(true);
       return;
     }
+
+    const connectedWallet = simulatedWallet.getWallet();
+
+    if (!connectedWallet || connectedWallet.classicAddress !== address) {
+      setShowPublicWalletModal(true);
+      return;
+    }
+
     setShowConfirmSendModal(true);
   };
 
-  const executeSend = async () => {
+  const handleConfirmModalClose = () => {
+    if (isLoading) return;
     setShowConfirmSendModal(false);
+  };
 
+  const executeSend = async () => {
     if (!address) {
+      setShowConfirmSendModal(false);
       setTxResult({
         success: false,
         error: "No hay una wallet conectada. Reconéctate.",
@@ -84,8 +101,17 @@ const SendComponent = ({
       return;
     }
 
+    const connectedWallet = simulatedWallet.getWallet();
+
+    if (!connectedWallet || connectedWallet.classicAddress !== address) {
+      setShowConfirmSendModal(false);
+      setShowPublicWalletModal(true);
+      return;
+    }
+
     const cleanDestination = destination.trim();
     const numericAmount = Number(amount);
+
     if (
       !cleanDestination ||
       !Number.isFinite(numericAmount) ||
@@ -97,14 +123,6 @@ const SendComponent = ({
     setIsLoading(true);
 
     try {
-      if (!simulatedWallet.getWallet()) {
-        await simulatedWallet.connect();
-        console.log(
-          "🔐 Wallet conectada automáticamente:",
-          simulatedWallet.getAddress(),
-        );
-      }
-
       const result = await test_transaction({
         address,
         amount,
@@ -113,6 +131,8 @@ const SendComponent = ({
           simulatedWallet.signTransaction(transaction),
       });
 
+      setShowConfirmSendModal(false);
+
       if (
         !result.success &&
         (result.code === "tefBAD_AUTH" ||
@@ -120,7 +140,6 @@ const SendComponent = ({
           result.error?.includes("latest ledger sequence"))
       ) {
         setShowCongestionModal(true);
-        setIsLoading(false);
         return;
       }
 
@@ -157,12 +176,13 @@ const SendComponent = ({
           try {
             await onBalanceUpdate();
           } catch (balanceError) {
-            console.error("⚠️ Error al actualizar balance:", balanceError);
+            console.error("Error al actualizar balance:", balanceError);
           }
         }
       }
     } catch (error: unknown) {
-      console.error("❌ Error en la ejecución:", error);
+      setShowConfirmSendModal(false);
+
       const errorMessage =
         error instanceof Error ? error.message : "Error desconocido";
 
@@ -172,7 +192,6 @@ const SendComponent = ({
         errorMessage.includes("latest ledger sequence")
       ) {
         setShowCongestionModal(true);
-        setIsLoading(false);
         return;
       }
 
@@ -180,7 +199,11 @@ const SendComponent = ({
         setShowInsufficientFunds(true);
         return;
       }
-      setTxResult({ success: false, error: errorMessage });
+
+      setTxResult({
+        success: false,
+        error: errorMessage,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -197,13 +220,14 @@ const SendComponent = ({
     zIndex: string = "z-50",
   ) => {
     if (!show) return null;
+
     return createPortal(
       <div
         className={`fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-md px-4 ${zIndex}`}
         onClick={onClose}
       >
         <div
-          className="w-full max-w-md bg-[#111111] border rounded-2xl shadow-2xl p-6"
+          className="w-full max-w-md bg-[#111111] border border-white/10 rounded-2xl shadow-2xl p-6"
           onClick={(e) => e.stopPropagation()}
         >
           {children}
@@ -219,12 +243,14 @@ const SendComponent = ({
         <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
           Enviar XRP
         </h2>
+
         {walletAddress && (
           <p className="text-gray-400 text-sm mb-2">
             Desde:{" "}
             <span className="text-indigo-300 font-mono">{shortAddress}</span>
           </p>
         )}
+
         <p className="text-gray-400 text-sm mb-4">
           Transfiere fondos a otra cuenta (Devnet)
         </p>
@@ -277,7 +303,7 @@ const SendComponent = ({
                   <path
                     className="opacity-90"
                     fill="currentColor"
-                    d="M21 12a9 9 0 0 0-9-9v3a6 6 0 0 1 6 6h3z"
+                    d="M21 12a9 9 0 0 1-9 9v-3a6 6 0 0 0 6-6h3z"
                   />
                 </svg>
                 <span>Enviando...</span>
@@ -296,24 +322,85 @@ const SendComponent = ({
       </div>
 
       {renderModal(
+        showPublicWalletModal,
+        closeAllModals,
+        <>
+          <div className="flex justify-center mb-5">
+            <div className="flex items-center justify-center w-20 h-20 rounded-full bg-yellow-500/10 border border-yellow-500/30">
+              <svg
+                className="w-10 h-10 text-yellow-400"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v3m0 4h.01M10.29 3.86l-8.82 15a2 2 0 001.71 3h17.64a2 2 0 001.71 3l-8.82-15a2 2 0 00-3.42 0z"
+                />
+              </svg>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <h3 className="text-2xl font-bold text-white mb-3">
+              No se puede realizar la transacción
+            </h3>
+
+            <p className="text-gray-400 text-sm mb-5">
+              Esta cuenta de la Devnet fue cargada únicamente con su dirección
+              pública y no tiene la seed disponible para firmar transacciones.
+            </p>
+
+            <div className="bg-yellow-500/5 border border-yellow-500/10 rounded-xl p-4 mb-6 text-left">
+              <p className="text-gray-300 text-sm mb-2">
+                Para poder enviar fondos necesitás:
+              </p>
+
+              <ul className="text-gray-400 text-sm space-y-2 list-disc list-inside">
+                <li>La seed privada de la billetera.</li>
+                <li>
+                  Tener la billetera conectada de forma que permita firmar
+                  transacciones.
+                </li>
+              </ul>
+            </div>
+
+            <button
+              onClick={closeAllModals}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-semibold hover:scale-[1.01] active:scale-[0.98] transition-all duration-200"
+            >
+              Entendido
+            </button>
+          </div>
+        </>,
+        "z-[90]",
+      )}
+
+      {renderModal(
         showConfirmSendModal,
-        () => setShowConfirmSendModal(false),
+        handleConfirmModalClose,
         <>
           <div className="flex justify-center mb-4">
             <div className="flex items-center justify-center w-16 h-16 rounded-full bg-indigo-500/15 border-2 border-indigo-500/40">
-              <span className="text-3xl">❓</span>
+              <span className="text-3xl">{isLoading ? "⏳" : "❓"}</span>
             </div>
           </div>
 
           <h3 className="text-xl font-bold text-white text-center mb-2">
-            Confirmar transferencia
+            {isLoading ? "Procesando transferencia" : "Confirmar transferencia"}
           </h3>
 
-          <p className="text-sm text-gray-300 text-center mb-5">
-            ¿Seguro que deseas transferir{" "}
-            <span className="text-indigo-400 font-semibold">{amount} XRP</span>{" "}
-            a la billetera
-          </p>
+          {!isLoading && (
+            <p className="text-sm text-gray-300 text-center mb-5">
+              ¿Seguro que deseas transferir{" "}
+              <span className="text-indigo-400 font-semibold">
+                {amount} XRP
+              </span>{" "}
+              a la billetera
+            </p>
+          )}
 
           <div className="bg-white/5 border border-white/10 rounded-xl p-3 mb-6">
             <p className="text-xs text-gray-400 mb-1">Dirección destino</p>
@@ -322,20 +409,50 @@ const SendComponent = ({
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={executeSend}
-              className="flex-1 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 shadow-lg shadow-green-500/20"
-            >
-              Aceptar
-            </button>
-            <button
-              onClick={() => setShowConfirmSendModal(false)}
-              className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-medium hover:bg-white/10 transition-all duration-200"
-            >
-              Cancelar
-            </button>
-          </div>
+          {isLoading ? (
+            <div className="flex flex-col items-center gap-3">
+              <svg
+                className="w-6 h-6 animate-spin text-indigo-400"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="9"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                />
+                <path
+                  className="opacity-90"
+                  fill="currentColor"
+                  d="M21 12a9 9 0 0 1-9 9v-3a6 6 0 0 0 6-6h3z"
+                />
+              </svg>
+
+              <p className="text-xs text-gray-500 text-center">
+                La transferencia está siendo procesada. No cierres esta ventana
+                hasta que finalice.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={executeSend}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 shadow-lg shadow-green-500/20"
+              >
+                Aceptar
+              </button>
+
+              <button
+                onClick={() => setShowConfirmSendModal(false)}
+                className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-medium hover:bg-white/10 transition-all duration-200"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
         </>,
         "z-[80]",
       )}
@@ -361,13 +478,16 @@ const SendComponent = ({
               </svg>
             </div>
           </div>
+
           <div className="text-center">
             <h3 className="text-xl font-semibold text-white mb-2">
               Dirección inválida
             </h3>
+
             <p className="text-gray-400 text-sm mb-5">
               No se pudo validar la dirección de destino.
             </p>
+
             <button
               onClick={closeAllModals}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-medium hover:scale-[1.01] active:scale-[0.98] transition-all duration-200"
@@ -400,13 +520,16 @@ const SendComponent = ({
               </svg>
             </div>
           </div>
+
           <div className="text-center">
             <h3 className="text-xl font-semibold text-white mb-2">
               Cantidad inválida
             </h3>
+
             <p className="text-gray-400 text-sm mb-5">
               La cantidad debe ser mayor a 0.
             </p>
+
             <button
               onClick={closeAllModals}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-medium hover:scale-[1.01] active:scale-[0.98] transition-all duration-200"
@@ -439,13 +562,16 @@ const SendComponent = ({
               </svg>
             </div>
           </div>
+
           <div className="text-center">
             <h3 className="text-2xl font-semibold text-white mb-2">
               Fondos insuficientes
             </h3>
+
             <p className="text-gray-400 text-sm mb-5">
               No tenés suficiente XRP para esta transferencia.
             </p>
+
             <button
               onClick={closeAllModals}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-semibold hover:scale-[1.01] active:scale-[0.98] transition-all duration-200"
@@ -462,9 +588,9 @@ const SendComponent = ({
         closeAllModals,
         <>
           <div className="flex justify-center mb-5">
-            <div className="flex items-center justify-center w-20 h-20 rounded-full bg-yellow-500/15 border-2 border-yellow-500/40">
+            <div className="flex items-center justify-center w-20 h-20 rounded-full bg-red-500/15 border-2 border-red-500/40">
               <svg
-                className="w-10 h-10 text-yellow-400"
+                className="w-10 h-10 text-red-400"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2.2"
@@ -473,31 +599,40 @@ const SendComponent = ({
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  d="M12 9v3m0 4h.01M10.29 3.86l-8.82 15a2 2 0 001.71 3h17.64a2 2 0 001.71 3l-8.82-15a2 2 0 00-3.42 0z"
+                  d="M6 18L18 6M6 6l12 12"
                 />
               </svg>
             </div>
           </div>
+
           <div className="text-center">
             <h3 className="text-2xl font-bold text-white mb-2">
-              Red Devnet congestionada
+              No se puede efectuar la transacción
             </h3>
+
             <p className="text-gray-400 text-sm mb-6">
-              La red XRP Ledger Devnet está experimentando una alta demanda en
-              este momento.
+              Esta billetera no tiene la seed almacenada en el navegador, por lo
+              que no puede firmar transacciones.
             </p>
-            <div className="bg-yellow-500/5 border border-yellow-500/10 rounded-xl p-4 mb-6">
-              <p className="text-gray-300 text-sm">
-                La transacción no pudo completarse porque la red está
-                congestionada.
-              </p>
-              <p className="text-gray-400 text-xs mt-2">
-                Por favor, intentá nuevamente en unos minutos.
-              </p>
+
+            <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-4 mb-6 text-left">
+              <p className="text-gray-300 text-sm mb-2">Esto ocurre cuando:</p>
+
+              <ul className="text-gray-400 text-sm space-y-1 list-disc list-inside">
+                <li>
+                  La billetera fue cargada manualmente desde la devnet solo con
+                  su dirección pública.
+                </li>
+                <li>
+                  La billetera fue creada anteriormente y su seed ya no está
+                  disponible.
+                </li>
+              </ul>
             </div>
+
             <button
               onClick={closeAllModals}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-semibold hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 shadow-lg shadow-yellow-500/20"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-500 text-white font-semibold hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 shadow-lg shadow-red-500/20"
             >
               Entendido
             </button>
