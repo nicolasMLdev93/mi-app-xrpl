@@ -1,4 +1,3 @@
-// src/components/Resume.tsx
 import { useState, useEffect } from "react";
 import { getXamanWallets } from "../utils/getXamanWallets";
 import { FiSettings, FiX } from "react-icons/fi";
@@ -258,7 +257,6 @@ const Resume = ({
   const handleConnectManual = async () => {
     const trimmedAddress = newAddress.trim();
 
-    // 🔥 Validación 1: dirección vacía → MODAL
     if (!trimmedAddress) {
       showWalletError(
         "Dirección obligatoria",
@@ -267,6 +265,7 @@ const Resume = ({
       return;
     }
 
+    // 🔥 Validación 2: formato inválido → MODAL
     if (!/^r[0-9a-zA-Z]{33,34}$/.test(trimmedAddress)) {
       showWalletError(
         "Dirección XRP inválida",
@@ -292,6 +291,7 @@ const Resume = ({
         setSuccess("✅ Billetera agregada exitosamente.");
         onRefreshWallets();
       } else {
+        // 🔥 Error al agregar → MODAL
         showWalletError(
           "No se pudo agregar la billetera",
           "Verifica que la dirección sea correcta y que no esté ya registrada. Intenta nuevamente.",
@@ -304,6 +304,7 @@ const Resume = ({
       if (checkSaturation(msg)) {
         showSaturationWarning(msg);
       } else {
+        // 🔥 Error de red / servidor → MODAL
         showWalletError("Error al conectar la billetera", msg);
       }
     } finally {
@@ -474,6 +475,11 @@ const Resume = ({
     }
   };
 
+  const openManageModal = (trustLine: TrustLine) => {
+    setSelectedTrustLine(trustLine);
+    setShowManageModal(true);
+  };
+
   const openConfirmDelete = () => {
     setConfirmMessage(
       `¿Seguro que deseas eliminar el Trust Line de ${getCurrencyDisplay(
@@ -589,7 +595,6 @@ const Resume = ({
 
   return (
     <div className="space-y-6">
-      {/* HEADER */}
       <div>
         <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
           {greeting}
@@ -597,7 +602,6 @@ const Resume = ({
         <p className="text-gray-400 text-sm">Tus billeteras XRP activas</p>
       </div>
 
-      {/* ERROR GENERAL */}
       {error && (
         <div className="w-full p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm">
           {error}
@@ -871,7 +875,6 @@ const Resume = ({
           </div>
         </div>
       )}
-
       {showModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1046,7 +1049,6 @@ const Resume = ({
           </div>
         </div>
       )}
-
       {showManageModal && selectedTrustLine && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
