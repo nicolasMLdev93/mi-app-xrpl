@@ -121,11 +121,12 @@ npm run migrate
 
 5. **Alcance de las operaciones**
    Únicamente las billeteras simuladas pueden firmar y enviar transacciones, ya que son las únicas que tienen su seed asociada en el `sessionStorage`. Si se agrega una billetera ya existente en la Devnet (solo dirección pública), únicamente será posible consultar sus fondos, no operar con ella.
+   Recordar que las billeteras de la Devnet y Testnet son usadas por múltiples usuarios en línea por lo cual su saldo puede variar todo el tiempo de forma activa; si las agrego a mi cuenta serán almacenadas en la base de datos global de la aplicación y no se podrán agregar nuevamente con otro usuario.
 
    > ⚠️ El sistema siempre opera con la **billetera que se encuentra al tope de la lista**, ya que es la que tiene la seed asociada en el `sessionStorage`.
    > ⚠️ Si se borra de forma manual dicha seed se creará otra billetera y se almacenará dicha seed en el  `sessionStorage`.
 
-6. **Cierre de sesión**
+7. **Cierre de sesión**
    - Si cerrás sesión y volvés a ingresar con la **misma cuenta**, la seed permanece en el `sessionStorage`. Al presionar nuevamente **"Conectar con Xaman"**, no se creará una billetera nueva.
    - Si cerrás sesión y accedés con **otra cuenta**, la seed se elimina del `sessionStorage` de forma automática. Esto permite que la nueva cuenta pueda generar su propia billetera simulada.
 
