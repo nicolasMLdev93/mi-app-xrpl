@@ -116,18 +116,19 @@ npm run migrate
 2. **Creación de una billetera simulada**
    Presioná el botón **"Conectar con Xaman"**. Esto genera automáticamente una billetera de prueba con 100 XRP de saldo inicial para operar en la Devnet.
 
-3. **Manejo de la seed (clave privada)**
+4. **Manejo de la seed (clave privada)**
    Al tratarse de una aplicación de pruebas sin riesgo real de seguridad, la seed de la billetera se almacena en el `sessionStorage` del navegador para poder firmar transacciones. En un entorno real conectado a Mainnet, la seed se obtendría mediante la autorización de Xaman, sin exponerla nunca en el navegador.
 
-4. **Alcance de las operaciones**
+5. **Alcance de las operaciones**
    Únicamente las billeteras simuladas pueden firmar y enviar transacciones, ya que son las únicas que tienen su seed asociada en el `sessionStorage`. Si se agrega una billetera ya existente en la Devnet (solo dirección pública), únicamente será posible consultar sus fondos, no operar con ella.
 
    > ⚠️ El sistema siempre opera con la **billetera que se encuentra al tope de la lista**, ya que es la que tiene la seed asociada en el `sessionStorage`.
+   > ⚠️ Si se borra de forma manual dicha seed se creará otra billetera y se almacenará dicha seed en el  `sessionStorage`.
 
-5. **Cierre de sesión**
+6. **Cierre de sesión**
    - Si cerrás sesión y volvés a ingresar con la **misma cuenta**, la seed permanece en el `sessionStorage`. Al presionar nuevamente **"Conectar con Xaman"**, no se creará una billetera nueva.
-   - Si cerrás sesión y accedés con **otra cuenta**, la seed debe eliminarse manualmente del `sessionStorage`. Esto permite que la nueva cuenta pueda generar su propia billetera simulada.
+   - Si cerrás sesión y accedés con **otra cuenta**, la seed se elimina del `sessionStorage` de forma automática. Esto permite que la nueva cuenta pueda generar su propia billetera simulada.
 
-   > ⚠️ Recordá: el sistema siempre usa la billetera ubicada al tope, ya que es la que tiene la seed asociada. Si esa seed no está disponible, se mostrará un mensaje de error, ya que **es necesaria para firmar la transacción**.
+   > ⚠️ Recordá: el sistema siempre usa la billetera ubicada al tope, ya que es la que tiene la seed asociada. Si esa seed no está disponible, se mostrará un mensaje de error, ya que **es necesaria para firmar la transacción**. La aplicación es una simulación, en la vida real siempre obtiene la seed para poder firmar las transacciones desde XAMAN.
 
 
