@@ -1,11 +1,6 @@
 import xrpl from "xrpl";
 import { XRPL_DEVNET } from "./config";
 
-// =========================================
-// Funcionalidad:
-// Consultar balance de XRP de una wallet
-// =========================================
-
 export const getBalance = async (address: string): Promise<number> => {
   // =========================================
   // 1. VALIDAR DIRECCIÓN
@@ -71,7 +66,7 @@ export const getBalance = async (address: string): Promise<number> => {
         console.log("🔌 Conexión cerrada.");
       }
     } catch {
-      // Ignorar error al cerrar conexión
+      //
     }
   }
 };

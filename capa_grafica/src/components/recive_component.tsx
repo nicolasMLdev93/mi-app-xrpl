@@ -1,5 +1,5 @@
 // src/components/ReciveComponent.tsx
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import xrpl from "xrpl";
 import QRCode from "react-qr-code";
 
@@ -9,17 +9,8 @@ interface ReciveComponentProps {
 
 const ReciveComponent = ({ address }: ReciveComponentProps) => {
   const [copied, setCopied] = useState(false);
-  const [isValidAddress, setIsValidAddress] = useState(true);
+  const isValidAddress = Boolean(address) && xrpl.isValidAddress(address);
 
-  // Validar dirección al montar
-  useEffect(() => {
-    if (address) {
-      const valid = xrpl.isValidAddress(address);
-      setIsValidAddress(valid);
-    }
-  }, [address]);
-
-  // Copiar dirección al portapapeles
   const handleCopy = async () => {
     if (!address) return;
     try {
@@ -31,7 +22,6 @@ const ReciveComponent = ({ address }: ReciveComponentProps) => {
     }
   };
 
-  // Si la dirección no es válida, mostrar error
   if (!address || !isValidAddress) {
     return (
       <div className="text-center py-8">
@@ -46,8 +36,6 @@ const ReciveComponent = ({ address }: ReciveComponentProps) => {
       <p className="text-sm text-gray-400">
         Comparte tu dirección pública para recibir XRP o RLUSD.
       </p>
-
-      {/* QR Code con react-qr-code */}
       <div className="flex justify-center">
         <div className="p-4 bg-white rounded-xl shadow-lg shadow-indigo-500/10">
           <QRCode
@@ -59,15 +47,11 @@ const ReciveComponent = ({ address }: ReciveComponentProps) => {
           />
         </div>
       </div>
-
-      {/* Dirección */}
       <div className="bg-white/5 rounded-xl p-4 border border-white/10">
         <p className="text-xs text-gray-500 mb-1">Tu dirección pública:</p>
         <div className="font-mono text-sm text-gray-200 break-all bg-black/30 p-3 rounded-lg border border-white/10 select-all">
           {address}
         </div>
-
-        {/* Botón copiar */}
         <button
           onClick={handleCopy}
           className="mt-3 w-full py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white font-medium transition-colors flex items-center justify-center gap-2"

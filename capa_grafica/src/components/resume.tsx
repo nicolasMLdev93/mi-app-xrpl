@@ -7,18 +7,10 @@ import SendComponent from "./send_component";
 import ReciveComponent from "./recive_component";
 import { jsPDF } from "jspdf";
 
-// ============================================================
-// Helper para mostrar nombre legible del token
-// ============================================================
-
 const getCurrencyDisplay = (currencyHex: string): string => {
   if (currencyHex === RLUSD_CURRENCY) return "RLUSD";
   return currencyHex;
 };
-
-// ============================================================
-// Interfaces
-// ============================================================
 
 interface TrustLine {
   id: number;
@@ -66,10 +58,6 @@ interface ResumeProps {
   onSyncTrustLine: (trustLineId: number) => Promise<any>;
 }
 
-// ============================================================
-// COMPONENTE
-// ============================================================
-
 const Resume = ({
   wallets,
   balances,
@@ -83,10 +71,6 @@ const Resume = ({
   const userString = localStorage.getItem("user");
   const user = userString ? JSON.parse(userString) : null;
 
-  // ==========================================================
-  // Estados generales
-  // ==========================================================
-
   const [showModal, setShowModal] = useState(false);
   const [newAddress, setNewAddress] = useState("");
   const [walletName, setWalletName] = useState("");
@@ -94,34 +78,18 @@ const Resume = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // ==========================================================
-  // 🔥 NUEVO: Modal de error para conexión manual
-  // ==========================================================
-
   const [showWalletErrorModal, setShowWalletErrorModal] = useState(false);
   const [walletErrorMessage, setWalletErrorMessage] = useState("");
   const [walletErrorTitle, setWalletErrorTitle] = useState("");
-
-  // ==========================================================
-  // Trust Lines
-  // ==========================================================
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedWalletId, setSelectedWalletId] = useState<number | null>(null);
   const [newLimitAmount, setNewLimitAmount] = useState(1000000);
 
-  // ==========================================================
-  // Modal gestión Trust Line
-  // ==========================================================
-
   const [showManageModal, setShowManageModal] = useState(false);
   const [selectedTrustLine, setSelectedTrustLine] = useState<TrustLine | null>(
     null,
   );
-
-  // ==========================================================
-  // Modal confirmación
-  // ==========================================================
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState("");
@@ -129,32 +97,16 @@ const Resume = ({
     (() => Promise<void>) | null
   >(null);
 
-  // ==========================================================
-  // Modal warning
-  // ==========================================================
-
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [warningMessage, setWarningMessage] = useState("");
-
-  // ==========================================================
-  // Modal envío
-  // ==========================================================
 
   const [showSendModal, setShowSendModal] = useState(false);
   const [selectedWalletForSend, setSelectedWalletForSend] =
     useState<Wallet | null>(null);
 
-  // ==========================================================
-  // Modal recibir
-  // ==========================================================
-
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [selectedWalletForReceive, setSelectedWalletForReceive] =
     useState<Wallet | null>(null);
-
-  // ==========================================================
-  // Modal éxito
-  // ==========================================================
 
   const [successModalData, setSuccessModalData] = useState<{
     amount: string;
@@ -164,23 +116,11 @@ const Resume = ({
   } | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // ==========================================================
-  // Estados de carga
-  // ==========================================================
-
   const [syncing, setSyncing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // ==========================================================
-  // DEVNET SATURADA
-  // ==========================================================
-
   const [isSaturated, setIsSaturated] = useState(false);
   const [saturationMessage, setSaturationMessage] = useState("");
-
-  // ==========================================================
-  // Auto desaparecer mensaje de éxito
-  // ==========================================================
 
   useEffect(() => {
     if (success) {
@@ -191,10 +131,6 @@ const Resume = ({
     }
   }, [success]);
 
-  // ==========================================================
-  // FORMATO BALANCE
-  // ==========================================================
-
   const formatBalance = (value: any, decimals: number = 2): string => {
     const num = typeof value === "number" ? value : parseFloat(value);
     if (isNaN(num)) {
@@ -202,10 +138,6 @@ const Resume = ({
     }
     return num.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
-
-  // ==========================================================
-  // CERRAR TODOS LOS MODALES
-  // ==========================================================
 
   const closeAllModals = () => {
     setShowModal(false);
@@ -223,19 +155,11 @@ const Resume = ({
     setSuccessModalData(null);
   };
 
-  // ==========================================================
-  // 🔥 HELPER: mostrar modal de error de wallet manual
-  // ==========================================================
-
   const showWalletError = (title: string, message: string) => {
     setWalletErrorTitle(title);
     setWalletErrorMessage(message);
     setShowWalletErrorModal(true);
   };
-
-  // ==========================================================
-  // VERIFICAR SATURACIÓN / CONGESTIÓN DEVNET
-  // ==========================================================
 
   const checkSaturation = (message?: string): boolean => {
     if (!message) {
@@ -261,10 +185,6 @@ const Resume = ({
     return keywords.some((keyword) => lower.includes(keyword));
   };
 
-  // ==========================================================
-  // MOSTRAR WARNING DE DEVNET CONGESTIONADA
-  // ==========================================================
-
   const showSaturationWarning = (message: string) => {
     closeAllModals();
     setSaturationMessage(
@@ -273,10 +193,6 @@ const Resume = ({
     );
     setIsSaturated(true);
   };
-
-  // ==========================================================
-  // CONECTAR CON XAMAN
-  // ==========================================================
 
   const handleConnectXaman = async () => {
     setIsConnecting(true);
@@ -339,10 +255,6 @@ const Resume = ({
     }
   };
 
-  // ==========================================================
-  // 🔥 CONECTAR MANUAL (ahora los errores van a un modal)
-  // ==========================================================
-
   const handleConnectManual = async () => {
     const trimmedAddress = newAddress.trim();
 
@@ -355,7 +267,6 @@ const Resume = ({
       return;
     }
 
-    // 🔥 Validación 2: formato inválido → MODAL
     if (!/^r[0-9a-zA-Z]{33,34}$/.test(trimmedAddress)) {
       showWalletError(
         "Dirección XRP inválida",
@@ -381,7 +292,6 @@ const Resume = ({
         setSuccess("✅ Billetera agregada exitosamente.");
         onRefreshWallets();
       } else {
-        // 🔥 Error al agregar → MODAL
         showWalletError(
           "No se pudo agregar la billetera",
           "Verifica que la dirección sea correcta y que no esté ya registrada. Intenta nuevamente.",
@@ -394,17 +304,12 @@ const Resume = ({
       if (checkSaturation(msg)) {
         showSaturationWarning(msg);
       } else {
-        // 🔥 Error de red / servidor → MODAL
         showWalletError("Error al conectar la billetera", msg);
       }
     } finally {
       setIsConnecting(false);
     }
   };
-
-  // ==========================================================
-  // ELIMINAR TRUST LINE
-  // ==========================================================
 
   const handleDeleteTrustLine = async () => {
     if (!selectedTrustLine) {
@@ -443,10 +348,6 @@ const Resume = ({
       setShowConfirmModal(false);
     }
   };
-
-  // ==========================================================
-  // SINCRONIZAR TRUST LINE
-  // ==========================================================
 
   const handleSyncTrustLine = async () => {
     if (!selectedTrustLine) {
@@ -495,10 +396,6 @@ const Resume = ({
       setSyncing(false);
     }
   };
-
-  // ==========================================================
-  // CREAR TRUST LINE
-  // ==========================================================
 
   const handleCreateTrustLine = async () => {
     const currency = RLUSD_CURRENCY;
@@ -577,10 +474,6 @@ const Resume = ({
     }
   };
 
-  // ==========================================================
-  // ABRIR CONFIRMACIÓN ELIMINAR
-  // ==========================================================
-
   const openConfirmDelete = () => {
     setConfirmMessage(
       `¿Seguro que deseas eliminar el Trust Line de ${getCurrencyDisplay(
@@ -591,27 +484,15 @@ const Resume = ({
     setShowConfirmModal(true);
   };
 
-  // ==========================================================
-  // ABRIR MODAL ENVÍO
-  // ==========================================================
-
   const openSendModal = (wallet: Wallet) => {
     setSelectedWalletForSend(wallet);
     setShowSendModal(true);
   };
 
-  // ==========================================================
-  // ABRIR MODAL RECIBIR
-  // ==========================================================
-
   const openReceiveModal = (wallet: Wallet) => {
     setSelectedWalletForReceive(wallet);
     setShowReceiveModal(true);
   };
-
-  // ==========================================================
-  // ÉXITO TRANSACCIÓN
-  // ==========================================================
 
   const handleTransactionSuccess = (data: {
     amount: string;
@@ -622,10 +503,6 @@ const Resume = ({
     setSuccessModalData(data);
     setShowSuccessModal(true);
   };
-
-  // ==========================================================
-  // CERRAR ENVÍO + ÉXITO
-  // ==========================================================
 
   const closeSendAndSuccess = () => {
     setShowSuccessModal(false);
@@ -705,18 +582,10 @@ const Resume = ({
     pdf.save(`xrpl-devnet-recibo-${hash.substring(0, 8)}.pdf`);
   };
 
-  // ==========================================================
-  // HELPERS
-  // ==========================================================
-
   const shortAddress = (addr: string) =>
     addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "";
 
   const greeting = user ? `Hola, ${user.username}` : "Hola";
-
-  // ==========================================================
-  // RENDER
-  // ==========================================================
 
   return (
     <div className="space-y-6">
@@ -735,14 +604,12 @@ const Resume = ({
         </div>
       )}
 
-      {/* SUCCESS GENERAL */}
       {success && (
         <div className="w-full p-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg text-sm">
           {success}
         </div>
       )}
 
-      {/* LOADING / WALLETS */}
       {loading ? (
         <div className="text-center text-gray-400 py-10">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500 mb-2"></div>
@@ -794,7 +661,6 @@ const Resume = ({
                   </div>
                 </div>
 
-                {/* BOTONES */}
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={() => openSendModal(wallet)}
@@ -810,7 +676,6 @@ const Resume = ({
                   </button>
                 </div>
 
-                {/* TRUST LINES */}
                 <div className="mt-3 pt-3 border-t border-white/10">
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-gray-400 uppercase tracking-wider">
@@ -877,7 +742,6 @@ const Resume = ({
         </div>
       )}
 
-      {/* BOTONES CONEXIÓN */}
       <div className="flex flex-col sm:flex-row gap-3">
         <button
           onClick={handleConnectXaman}
@@ -925,9 +789,6 @@ const Resume = ({
         </button>
       </div>
 
-      {/* ======================================================
-          🔥 MODAL DE ERROR DE WALLET MANUAL
-          ====================================================== */}
       {showWalletErrorModal && (
         <div
           className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
@@ -972,7 +833,6 @@ const Resume = ({
         </div>
       )}
 
-      {/* MODAL DEVNET CONGESTIONADA */}
       {isSaturated && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
@@ -1012,7 +872,6 @@ const Resume = ({
         </div>
       )}
 
-      {/* MODAL DIRECCIÓN MANUAL */}
       {showModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1090,7 +949,6 @@ const Resume = ({
         </div>
       )}
 
-      {/* MODAL CREAR TRUST LINE */}
       {showCreateModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1189,7 +1047,6 @@ const Resume = ({
         </div>
       )}
 
-      {/* MODAL GESTIÓN TRUST LINE */}
       {showManageModal && selectedTrustLine && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1275,7 +1132,6 @@ const Resume = ({
         </div>
       )}
 
-      {/* MODAL CONFIRMACIÓN ELIMINAR */}
       {showConfirmModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1313,7 +1169,6 @@ const Resume = ({
         </div>
       )}
 
-      {/* MODAL WARNING TRUST LINE DUPLICADO */}
       {showWarningModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1338,7 +1193,6 @@ const Resume = ({
         </div>
       )}
 
-      {/* MODAL ENVÍO */}
       {showSendModal && selectedWalletForSend && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1379,7 +1233,6 @@ const Resume = ({
         </div>
       )}
 
-      {/* MODAL RECIBIR */}
       {showReceiveModal && selectedWalletForReceive && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1411,7 +1264,6 @@ const Resume = ({
         </div>
       )}
 
-      {/* MODAL ÉXITO */}
       {showSuccessModal && successModalData && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"

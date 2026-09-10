@@ -1,10 +1,7 @@
 const home_background = () => {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden">
-      {/* Textura de cubos (sutil) */}
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
-
-      {/* Burbujas animadas con baja opacidad */}
       <div className="absolute inset-0">
         <div className="bubble bubble-1"></div>
         <div className="bubble bubble-2"></div>
@@ -12,8 +9,6 @@ const home_background = () => {
         <div className="bubble bubble-4"></div>
         <div className="bubble bubble-5"></div>
       </div>
-
-      {/* Estilos de las burbujas */}
       <style>{`
           .bubble {
             position: absolute;

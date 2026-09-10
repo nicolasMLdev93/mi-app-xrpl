@@ -143,7 +143,7 @@ const createRLUSDTrustline = async (
         console.log("🔌 Conexión cerrada.");
       }
     } catch {
-      // Ignorar error al cerrar conexión
+      // 
     }
   }
 };

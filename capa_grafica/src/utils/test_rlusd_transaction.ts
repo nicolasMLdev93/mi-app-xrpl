@@ -3,10 +3,9 @@ import { RLUSD_ISSUER, RLUSD_CURRENCY, XRPL_DEVNET } from "./config";
 
 type TransactionInput = {
   address: string;
-  amount: string; // cantidad de RLUSD
+  amount: string;
   destination: string;
 
-  // Función proporcionada por la wallet para firmar
   signTransaction: (transaction: xrpl.Transaction) => Promise<{
     tx_blob: string;
     hash: string;
@@ -72,8 +71,6 @@ const test_rlusd_transaction = async ({
     };
   }
 
-  // Evitar problemas con cantidades excesivamente pequeñas
-  // o con demasiados decimales.
   if (!/^\d+(\.\d+)?$/.test(amount)) {
     return {
       success: false,
@@ -276,7 +273,7 @@ const test_rlusd_transaction = async ({
         console.log("🔌 Conexión XRPL cerrada.");
       }
     } catch {
-      // Ignorar error al cerrar conexión
+      // 
     }
   }
 };

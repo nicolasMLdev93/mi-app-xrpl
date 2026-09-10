@@ -19,14 +19,11 @@ const SideBar = ({
 }: SideBarProps) => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Obtener usuario desde localStorage
   const userString = localStorage.getItem("user");
   const user = userString ? JSON.parse(userString) : null;
 
-  // Obtener iniciales del username para el avatar
   const initial = user?.username?.charAt(0).toUpperCase() || "U";
 
-  // Función para cerrar sesión con spinner y delay
   const handleLogout = () => {
     setIsLoggingOut(true);
     setTimeout(() => {

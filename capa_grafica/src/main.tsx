@@ -1,24 +1,34 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
 import { BrowserRouter } from "react-router-dom";
+import App from "./App.tsx";
 import "./index.css";
 
-window.addEventListener("unhandledrejection", (event) => {
-  if (
-    event.reason?.message?.includes(
-      "A listener indicated an asynchronous response",
-    )
-  ) {
-    event.preventDefault();
-    console.debug("🔇 Error de extensión suprimido (no afecta a la app)");
-  }
-});
+const IGNORED_REJECTION_PATTERNS = [
+  "A listener indicated an asynchronous response",
+  "message channel closed",
+  "Extension context invalidated",
+  "The message port closed before a response was received",
+  "Failed to connect to MetaMask",
+  "MetaMask encountered an error",
+  "Non-Error promise rejection captured",
+  "ResizeObserver loop completed with undelivered notifications",
+  "ResizeObserver loop limit exceeded",
+  "Cannot read properties of null (reading 'removeChild')",
+];
 
 window.addEventListener("unhandledrejection", (event) => {
-  if (event.reason?.message?.includes("message channel closed")) {
+  const message = event.reason?.message ?? "";
+  const isExtensionNoise = IGNORED_REJECTION_PATTERNS.some((pattern) =>
+    message.includes(pattern),
+  );
+
+  if (isExtensionNoise) {
     event.preventDefault();
-    console.warn("⚠️ Error de extensión ignorado:", event.reason);
+    console.debug(
+      "🔇 Error de extensión suprimido (no afecta a la app):",
+      message,
+    );
   }
 });
 

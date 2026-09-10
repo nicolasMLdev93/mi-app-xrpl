@@ -1,4 +1,3 @@
-// src/components/send_component.tsx
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import xrpl from "xrpl";
@@ -36,12 +35,10 @@ const SendComponent = ({
   const [showInsufficientFunds, setShowInsufficientFunds] = useState(false);
   const [showCongestionModal, setShowCongestionModal] = useState(false);
 
-  // 🔥 NUEVO: Modal de confirmación antes de enviar
   const [showConfirmSendModal, setShowConfirmSendModal] = useState(false);
 
   const address = walletAddress || sessionStorage.getItem("xrplPublicKey");
 
-  // 🔥 Función para cerrar todos los modales
   const closeAllModals = () => {
     setShowAmountError(false);
     setShowAddressError(false);
@@ -50,9 +47,6 @@ const SendComponent = ({
     setShowConfirmSendModal(false);
   };
 
-  // ==========================================================
-  // 🔥 handleSend: valida y abre el modal de confirmación
-  // ==========================================================
   const handleSend = () => {
     if (!address) {
       setTxResult({
@@ -62,7 +56,6 @@ const SendComponent = ({
       return;
     }
 
-    // Resetear todo antes de intentar
     setTxResult(null);
     closeAllModals();
 
@@ -77,15 +70,9 @@ const SendComponent = ({
       setShowAmountError(true);
       return;
     }
-
-    // 🔥 Si todo está válido, mostramos el modal de confirmación
     setShowConfirmSendModal(true);
   };
 
-  // ==========================================================
-  // 🔥 executeSend: ejecuta la transacción real
-  // Se llama SOLO cuando el usuario confirma en el modal
-  // ==========================================================
   const executeSend = async () => {
     setShowConfirmSendModal(false);
 
@@ -203,7 +190,6 @@ const SendComponent = ({
     ? `${address.slice(0, 8)}...${address.slice(-6)}`
     : "No conectada";
 
-  // Función para renderizar un modal con Portal
   const renderModal = (
     show: boolean,
     onClose: () => void,
@@ -309,11 +295,6 @@ const SendComponent = ({
         </div>
       </div>
 
-      {/* ========== MODALES CON PORTAL ========== */}
-
-      {/* ====================================================== */}
-      {/* 🔥 NUEVO: Modal de confirmación antes de enviar       */}
-      {/* ====================================================== */}
       {renderModal(
         showConfirmSendModal,
         () => setShowConfirmSendModal(false),
@@ -359,7 +340,6 @@ const SendComponent = ({
         "z-[80]",
       )}
 
-      {/* Modal: Dirección inválida */}
       {renderModal(
         showAddressError,
         closeAllModals,
@@ -399,7 +379,6 @@ const SendComponent = ({
         "z-50",
       )}
 
-      {/* Modal: Cantidad inválida */}
       {renderModal(
         showAmountError,
         closeAllModals,
@@ -439,7 +418,6 @@ const SendComponent = ({
         "z-50",
       )}
 
-      {/* Modal: Fondos insuficientes */}
       {renderModal(
         showInsufficientFunds,
         closeAllModals,
@@ -479,7 +457,6 @@ const SendComponent = ({
         "z-50",
       )}
 
-      {/* Modal: Congestión de red */}
       {renderModal(
         showCongestionModal,
         closeAllModals,

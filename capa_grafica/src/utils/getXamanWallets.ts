@@ -16,15 +16,12 @@ export const getXamanWallets = async (): Promise<XamanWallet[]> => {
     await client.connect();
     console.log("✅ Conectado.");
 
-    // 🔥 Generar SOLO UNA wallet (la principal)
     const address = await simulatedWallet.connect();
     console.log("👛 Address obtenido:", address);
 
-    // Fondear la wallet (si es nueva)
     const balance = await simulatedWallet.fund(client);
     console.log("💰 Balance fondeado:", balance, "XRP");
 
-    // Devuelve un array con una sola wallet
     const wallets: XamanWallet[] = [
       { address, name: "Wallet Principal (Xaman)" },
     ];

@@ -6,7 +6,6 @@ type TransactionInput = {
   amount: string;
   destination: string;
 
-  // Función proporcionada por la wallet para firmar
   signTransaction: (transaction: xrpl.Transaction) => Promise<{
     tx_blob: string;
     hash: string;

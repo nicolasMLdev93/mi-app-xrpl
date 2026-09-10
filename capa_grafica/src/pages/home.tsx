@@ -1,13 +1,7 @@
 // src/pages/Home.tsx
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  FiHome,
-  FiClock,
-  FiSettings,
-  FiMenu,
-  FiX,
-} from "react-icons/fi";
+import { FiHome, FiClock, FiSettings, FiMenu, FiX } from "react-icons/fi";
 
 import Resume from "../components/resume";
 import ReciveComponent from "../components/recive_component";
@@ -144,7 +138,6 @@ const Home = () => {
         );
         const checkData = await checkRes.json();
 
-        // 🔥 Usar la constante hexadecimal para comparar
         const exists = checkData.data?.some(
           (tl: any) =>
             tl.currency === RLUSD_CURRENCY && tl.issuer === RLUSD_ISSUER,
@@ -159,7 +152,7 @@ const Home = () => {
             },
             body: JSON.stringify({
               wallet_id: walletId,
-              currency: RLUSD_CURRENCY, // 🔥 Usar hex
+              currency: RLUSD_CURRENCY,
               issuer: RLUSD_ISSUER,
               limit_amount: 1000000,
             }),

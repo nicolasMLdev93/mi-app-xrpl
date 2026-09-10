@@ -6,13 +6,10 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white relative overflow-hidden px-4">
-      {/* Fondos y efectos (igual que antes) */}
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-30"></div>
       <div className="absolute top-[-10%] left-[-10%] w-72 h-72 bg-indigo-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-700 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse delay-1000"></div>
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-pink-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-700"></div>
-
-      {/* Tarjeta principal */}
       <div className="relative z-10 flex flex-col items-center w-full max-w-md p-8 sm:p-10 rounded-3xl bg-white/5 backdrop-blur-lg border border-white/10 shadow-2xl shadow-indigo-500/10">
         <App_logo />
 
@@ -23,10 +20,6 @@ const Login = () => {
         <p className="text-sm sm:text-base mb-8 text-center text-gray-300 max-w-xs">
           Accede a tu cuenta para gestionar tus billeteras XRP.
         </p>
-
-        {/* ====================================
-            BOTONES DE AUTENTICACIÓN
-            ==================================== */}
         <div className="w-full flex flex-col gap-3">
           <button
             onClick={() => navigate("/login")}
