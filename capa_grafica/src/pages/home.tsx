@@ -1,4 +1,3 @@
-// src/pages/Home.tsx
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHome, FiClock, FiSettings, FiMenu, FiX } from "react-icons/fi";

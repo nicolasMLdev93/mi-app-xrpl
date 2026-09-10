@@ -29,6 +29,7 @@ const SideBar = ({
     setTimeout(() => {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      sessionStorage.removeItem("simulatedWalletSeed");
       navigate("/");
     }, 1500);
   };

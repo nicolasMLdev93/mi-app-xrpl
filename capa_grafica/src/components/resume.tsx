@@ -291,7 +291,6 @@ const Resume = ({
         setSuccess("✅ Billetera agregada exitosamente.");
         onRefreshWallets();
       } else {
-        // 🔥 Error al agregar → MODAL
         showWalletError(
           "No se pudo agregar la billetera",
           "Verifica que la dirección sea correcta y que no esté ya registrada. Intenta nuevamente.",
@@ -304,7 +303,6 @@ const Resume = ({
       if (checkSaturation(msg)) {
         showSaturationWarning(msg);
       } else {
-        // 🔥 Error de red / servidor → MODAL
         showWalletError("Error al conectar la billetera", msg);
       }
     } finally {
@@ -601,19 +599,16 @@ const Resume = ({
         </h2>
         <p className="text-gray-400 text-sm">Tus billeteras XRP activas</p>
       </div>
-
       {error && (
         <div className="w-full p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm">
           {error}
         </div>
       )}
-
       {success && (
         <div className="w-full p-3 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg text-sm">
           {success}
         </div>
       )}
-
       {loading ? (
         <div className="text-center text-gray-400 py-10">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500 mb-2"></div>
@@ -745,7 +740,6 @@ const Resume = ({
           })}
         </div>
       )}
-
       <div className="flex flex-col sm:flex-row gap-3">
         <button
           onClick={handleConnectXaman}
@@ -792,7 +786,6 @@ const Resume = ({
           Ingresar dirección manual
         </button>
       </div>
-
       {showWalletErrorModal && (
         <div
           className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
@@ -836,7 +829,6 @@ const Resume = ({
           </div>
         </div>
       )}
-
       {isSaturated && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
@@ -887,6 +879,7 @@ const Resume = ({
             <h3 className="text-xl font-semibold text-white mb-2">
               Conectar nueva wallet
             </h3>
+
             <p className="text-sm text-gray-400 mb-4">
               Ingresa la dirección XRP que deseas agregar.
             </p>
@@ -899,6 +892,7 @@ const Resume = ({
               className="w-full p-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all mb-3"
               autoFocus
             />
+
             <input
               type="text"
               value={walletName}
@@ -906,6 +900,26 @@ const Resume = ({
               placeholder="Nombre (opcional)"
               className="w-full p-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all mb-4"
             />
+
+            <div className="p-3 mb-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
+              <div className="flex items-start gap-3">
+                <span className="text-xl mt-0.5">⚠️</span>
+
+                <div>
+                  <p className="text-sm font-semibold text-yellow-400 mb-1">
+                    Wallet agregada manualmente
+                  </p>
+
+                  <p className="text-xs text-gray-300 leading-relaxed">
+                    Esta wallet se agregará únicamente mediante su dirección
+                    pública. La aplicación no almacenará su seed, por lo que
+                    podrás consultar su saldo y utilizarla para recibir
+                    transacciones, pero no podrás enviar transacciones desde
+                    esta wallet.
+                  </p>
+                </div>
+              </div>
+            </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <button
@@ -941,6 +955,7 @@ const Resume = ({
                   "Conectar"
                 )}
               </button>
+
               <button
                 onClick={() => setShowModal(false)}
                 className="flex-1 py-3 bg-white/10 hover:bg-white/20 active:scale-95 transition-all rounded-xl text-white font-semibold"
@@ -951,7 +966,6 @@ const Resume = ({
           </div>
         </div>
       )}
-
       {showCreateModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1133,7 +1147,6 @@ const Resume = ({
           </div>
         </div>
       )}
-
       {showConfirmModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1170,7 +1183,6 @@ const Resume = ({
           </div>
         </div>
       )}
-
       {showWarningModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1194,7 +1206,6 @@ const Resume = ({
           </div>
         </div>
       )}
-
       {showSendModal && selectedWalletForSend && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1234,7 +1245,6 @@ const Resume = ({
           </div>
         </div>
       )}
-
       {showReceiveModal && selectedWalletForReceive && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
@@ -1265,7 +1275,6 @@ const Resume = ({
           </div>
         </div>
       )}
-
       {showSuccessModal && successModalData && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"

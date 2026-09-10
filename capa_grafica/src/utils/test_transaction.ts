@@ -198,7 +198,7 @@ const test_transaction = async ({
     if (txResult === "tecUNFUNDED_PAYMENT") {
       return {
         success: false,
-        error: "Fondos insuficientes de XRP",
+        error: "Fondos insuficientes de XRP (reserva base 2,00001 XRP)",
         code: txResult,
       };
     }
@@ -239,7 +239,7 @@ const test_transaction = async ({
         console.log("🔌 Conexión cerrada.");
       }
     } catch {
-      // Ignorar error al cerrar conexión
+      // 
     }
   }
 };
