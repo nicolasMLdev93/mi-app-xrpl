@@ -20,7 +20,7 @@ module.exports = {
         onDelete: 'CASCADE',
       },
       currency: {
-        type: Sequelize.STRING(10),
+        type: Sequelize.STRING(40),
         allowNull: false,
       },
       issuer: {
