@@ -1,4 +1,3 @@
-// src/middlewares/validationMiddleware.ts
 import { body, param, validationResult } from "express-validator";
 import { Request, Response, NextFunction } from "express";
 
@@ -95,57 +94,73 @@ export const billeteraValidationRules = [
 //  VALIDACIONES PARA TRUST LINES
 // ====================
 export const trustLineValidationRules = [
-  body('wallet_id')
-    .notEmpty().withMessage('wallet_id es obligatorio')
-    .isInt().withMessage('wallet_id debe ser un número entero'),
+  body("wallet_id")
+    .notEmpty()
+    .withMessage("wallet_id es obligatorio")
+    .isInt()
+    .withMessage("wallet_id debe ser un número entero"),
 
-  body('currency')
-    .notEmpty().withMessage('currency es obligatorio')
-    .isString().withMessage('currency debe ser texto')
-    .isLength({ max: 40 }).withMessage('currency no puede exceder 40 caracteres'), // 🔥 CAMBIADO: 10 → 40
+  body("currency")
+    .notEmpty()
+    .withMessage("currency es obligatorio")
+    .isString()
+    .withMessage("currency debe ser texto")
+    .isLength({ max: 40 })
+    .withMessage("currency no puede exceder 40 caracteres"),
 
-  body('issuer')
-    .notEmpty().withMessage('issuer es obligatorio')
-    .isString().withMessage('issuer debe ser texto')
-    .isLength({ max: 255 }).withMessage('issuer no puede exceder 255 caracteres'),
+  body("issuer")
+    .notEmpty()
+    .withMessage("issuer es obligatorio")
+    .isString()
+    .withMessage("issuer debe ser texto")
+    .isLength({ max: 255 })
+    .withMessage("issuer no puede exceder 255 caracteres"),
 
-  body('limit_amount')
+  body("limit_amount")
     .optional()
-    .isNumeric().withMessage('limit_amount debe ser un número')
-    .custom((value) => value > 0).withMessage('limit_amount debe ser mayor a 0'),
+    .isNumeric()
+    .withMessage("limit_amount debe ser un número")
+    .custom((value) => value > 0)
+    .withMessage("limit_amount debe ser mayor a 0"),
 ];
 
 export const actualizarTrustLineValidationRules = [
-  body('limit_amount')
+  body("limit_amount")
     .optional()
-    .isNumeric().withMessage('limit_amount debe ser un número')
-    .custom((value) => value > 0).withMessage('limit_amount debe ser mayor a 0'),
+    .isNumeric()
+    .withMessage("limit_amount debe ser un número")
+    .custom((value) => value > 0)
+    .withMessage("limit_amount debe ser mayor a 0"),
 
-  body('status')
+  body("status")
     .optional()
-    .isIn(['active', 'inactive', 'blocked']).withMessage('status debe ser active, inactive o blocked'),
+    .isIn(["active", "inactive", "blocked"])
+    .withMessage("status debe ser active, inactive o blocked"),
 
-  body('balance')
+  body("balance")
     .optional()
-    .isNumeric().withMessage('balance debe ser un número')
-    .custom((value) => value >= 0).withMessage('balance no puede ser negativo'),
+    .isNumeric()
+    .withMessage("balance debe ser un número")
+    .custom((value) => value >= 0)
+    .withMessage("balance no puede ser negativo"),
 ];
 
 export const cambiarLimiteValidationRules = [
-  body('new_limit')
-    .notEmpty().withMessage('new_limit es obligatorio')
-    .isNumeric().withMessage('new_limit debe ser un número')
-    .custom((value) => value > 0).withMessage('new_limit debe ser mayor a 0'),
+  body("new_limit")
+    .notEmpty()
+    .withMessage("new_limit es obligatorio")
+    .isNumeric()
+    .withMessage("new_limit debe ser un número")
+    .custom((value) => value > 0)
+    .withMessage("new_limit debe ser mayor a 0"),
 ];
 
 export const trustLineIdParamValidation = [
-  param('id')
-    .isInt().withMessage('ID de trust line inválido'),
+  param("id").isInt().withMessage("ID de trust line inválido"),
 ];
 
 export const walletIdParamValidation = [
-  param('wallet_id')
-    .isInt().withMessage('ID de wallet inválido'),
+  param("wallet_id").isInt().withMessage("ID de wallet inválido"),
 ];
 
 // ====================

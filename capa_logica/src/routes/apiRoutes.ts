@@ -1,6 +1,9 @@
-import { Router } from 'express';
-import { register, login } from '../controllers/authController';
-import { crearBilletera, obtenerBilleteras } from '../controllers/billeteraController';
+import { Router } from "express";
+import { register, login } from "../controllers/authController";
+import {
+  crearBilletera,
+  obtenerBilleteras,
+} from "../controllers/billeteraController";
 import {
   obtenerTrustLines,
   crearTrustLine,
@@ -10,7 +13,7 @@ import {
   prepararCambioLimite,
   verificarTrustLine as verificarTrustLineController,
   obtenerBalanceRLUSD,
-} from '../controllers/trustLineController';
+} from "../controllers/trustLineController";
 import {
   registerValidationRules,
   loginValidationRules,
@@ -21,103 +24,101 @@ import {
   trustLineIdParamValidation,
   walletIdParamValidation,
   validate,
-} from '../middlewares/validationMiddleware';
-import { authenticate } from '../middlewares/authMiddleware';
+} from "../middlewares/validationMiddleware";
+import { authenticate } from "../middlewares/authMiddleware";
 import {
   verificarTrustLine,
   verificarWallet,
-} from '../middlewares/trustLineMiddleware';
+} from "../middlewares/trustLineMiddleware";
 
 const router = Router();
 
 // Autenticación
-router.post('/register', registerValidationRules, validate, register);
-router.post('/login', loginValidationRules, validate, login);
+router.post("/register", registerValidationRules, validate, register);
+router.post("/login", loginValidationRules, validate, login);
 
 // Billeteras
-router.get('/billeteras', authenticate, obtenerBilleteras);
-router.post('/billeteras', authenticate, billeteraValidationRules, validate, crearBilletera);
-
-// =========================================
-//  RUTAS PARA TRUST LINES
-// =========================================
+router.get("/billeteras", authenticate, obtenerBilleteras);
+router.post(
+  "/billeteras",
+  authenticate,
+  billeteraValidationRules,
+  validate,
+  crearBilletera,
+);
 
 // Obtener trust lines de una billetera
 router.get(
-  '/billeteras/:wallet_id/trustlines',
+  "/billeteras/:wallet_id/trustlines",
   authenticate,
   walletIdParamValidation,
   validate,
   verificarWallet,
-  obtenerTrustLines
+  obtenerTrustLines,
 );
 
 // Crear trust line (manual)
 router.post(
-  '/trustlines',
+  "/trustlines",
   authenticate,
   trustLineValidationRules,
   validate,
-  crearTrustLine
+  crearTrustLine,
 );
 
 // Actualizar trust line (local)
 router.put(
-  '/trustlines/:id',
+  "/trustlines/:id",
   authenticate,
   trustLineIdParamValidation,
   actualizarTrustLineValidationRules,
   validate,
   verificarTrustLine,
-  actualizarTrustLine
+  actualizarTrustLine,
 );
 
 // Eliminar trust line
 router.delete(
-  '/trustlines/:id',
+  "/trustlines/:id",
   authenticate,
   trustLineIdParamValidation,
   validate,
   verificarTrustLine,
-  eliminarTrustLine
+  eliminarTrustLine,
 );
 
 // Sincronizar con blockchain
 router.post(
-  '/trustlines/:id/sync',
+  "/trustlines/:id/sync",
   authenticate,
   trustLineIdParamValidation,
   validate,
   verificarTrustLine,
-  sincronizarTrustLine
+  sincronizarTrustLine,
 );
 
 // Preparar transacción para cambiar límite
 router.post(
-  '/trustlines/:id/prepare-limit-change',
+  "/trustlines/:id/prepare-limit-change",
   authenticate,
   trustLineIdParamValidation,
   cambiarLimiteValidationRules,
   validate,
   verificarTrustLine,
-  prepararCambioLimite
+  prepararCambioLimite,
 );
 
 // Endpoints para frontend (sin lógica de blockchain)
 router.get(
-  '/trustlines/check/:address',
+  "/trustlines/check/:address",
   authenticate,
-  verificarTrustLineController
+  verificarTrustLineController,
 );
+// Endpoint para obtener balance de rlusd
+router.get("/balances/rlusd/:address", authenticate, obtenerBalanceRLUSD);
 
-router.get(
-  '/balances/rlusd/:address',
-  authenticate,
-  obtenerBalanceRLUSD
-);
-
-router.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date() });
+router.get("/health", (_req, res) => {
+  res.json({ status: "ok", timestamp: new Date() });
 });
 
 export default router;

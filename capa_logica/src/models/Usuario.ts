@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional, Sequelize } from 'sequelize';
+import { DataTypes, Model, Optional, Sequelize } from "sequelize";
 
 interface UsuarioAttributes {
   id: number;
@@ -9,9 +9,15 @@ interface UsuarioAttributes {
   updatedAt?: Date;
 }
 
-interface UsuarioCreationAttributes extends Optional<UsuarioAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+interface UsuarioCreationAttributes extends Optional<
+  UsuarioAttributes,
+  "id" | "createdAt" | "updatedAt"
+> {}
 
-class Usuario extends Model<UsuarioAttributes, UsuarioCreationAttributes> implements UsuarioAttributes {
+class Usuario
+  extends Model<UsuarioAttributes, UsuarioCreationAttributes>
+  implements UsuarioAttributes
+{
   public id!: number;
   public username!: string;
   public email!: string;
@@ -23,17 +29,29 @@ class Usuario extends Model<UsuarioAttributes, UsuarioCreationAttributes> implem
     return Usuario.init(
       {
         id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-        username: { type: DataTypes.STRING(50), allowNull: false, unique: true },
+        username: {
+          type: DataTypes.STRING(50),
+          allowNull: false,
+          unique: true,
+        },
         email: { type: DataTypes.STRING(100), allowNull: false, unique: true },
         password_hash: { type: DataTypes.STRING(255), allowNull: false },
-        createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
-        updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+        createdAt: {
+          type: DataTypes.DATE,
+          allowNull: false,
+          defaultValue: DataTypes.NOW,
+        },
+        updatedAt: {
+          type: DataTypes.DATE,
+          allowNull: false,
+          defaultValue: DataTypes.NOW,
+        },
       },
       {
         sequelize,
-        tableName: 'usuarios',
+        tableName: "usuarios",
         timestamps: true,
-      }
+      },
     );
   }
 }

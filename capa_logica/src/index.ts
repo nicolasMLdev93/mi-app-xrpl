@@ -7,7 +7,6 @@ import { config } from "./config";
 import apiRoutes from "./routes/apiRoutes"; 
 
 const app: Application = express();
-
 // Middlewares globales
 app.use(helmet());
 app.use(cors());
@@ -19,10 +18,8 @@ if (config.nodeEnv === "development") {
 } else {
   app.use(morgan("combined"));
 }
-
 // Rutas
 app.use("/api", apiRoutes);  
-
 // Iniciar servidor
 const { port } = config;
 app.listen(port, () => {
