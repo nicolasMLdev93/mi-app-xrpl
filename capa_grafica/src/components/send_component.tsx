@@ -1,3 +1,4 @@
+// src/components/send_component.tsx
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import xrpl from "xrpl";
@@ -35,6 +36,9 @@ const SendComponent = ({
   const [showInsufficientFunds, setShowInsufficientFunds] = useState(false);
   const [showCongestionModal, setShowCongestionModal] = useState(false);
 
+  // 🔥 NUEVO: Modal de confirmación antes de enviar
+  const [showConfirmSendModal, setShowConfirmSendModal] = useState(false);
+
   const address = walletAddress || sessionStorage.getItem("xrplPublicKey");
 
   // 🔥 Función para cerrar todos los modales
@@ -43,9 +47,13 @@ const SendComponent = ({
     setShowAddressError(false);
     setShowInsufficientFunds(false);
     setShowCongestionModal(false);
+    setShowConfirmSendModal(false);
   };
 
-  const handleSend = async () => {
+  // ==========================================================
+  // 🔥 handleSend: valida y abre el modal de confirmación
+  // ==========================================================
+  const handleSend = () => {
     if (!address) {
       setTxResult({
         success: false,
@@ -56,7 +64,7 @@ const SendComponent = ({
 
     // Resetear todo antes de intentar
     setTxResult(null);
-    closeAllModals(); // 👈 Cierra cualquier modal abierto
+    closeAllModals();
 
     const cleanDestination = destination.trim();
     if (!cleanDestination || !xrpl.isValidAddress(cleanDestination)) {
@@ -67,6 +75,35 @@ const SendComponent = ({
     const numericAmount = Number(amount);
     if (!amount || !Number.isFinite(numericAmount) || numericAmount <= 0) {
       setShowAmountError(true);
+      return;
+    }
+
+    // 🔥 Si todo está válido, mostramos el modal de confirmación
+    setShowConfirmSendModal(true);
+  };
+
+  // ==========================================================
+  // 🔥 executeSend: ejecuta la transacción real
+  // Se llama SOLO cuando el usuario confirma en el modal
+  // ==========================================================
+  const executeSend = async () => {
+    setShowConfirmSendModal(false);
+
+    if (!address) {
+      setTxResult({
+        success: false,
+        error: "No hay una wallet conectada. Reconéctate.",
+      });
+      return;
+    }
+
+    const cleanDestination = destination.trim();
+    const numericAmount = Number(amount);
+    if (
+      !cleanDestination ||
+      !Number.isFinite(numericAmount) ||
+      numericAmount <= 0
+    ) {
       return;
     }
 
@@ -203,7 +240,7 @@ const SendComponent = ({
           </p>
         )}
         <p className="text-gray-400 text-sm mb-4">
-          Transfiere fondos a otra cuenta (Testnet)
+          Transfiere fondos a otra cuenta (Devnet)
         </p>
 
         <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-3">
@@ -274,10 +311,58 @@ const SendComponent = ({
 
       {/* ========== MODALES CON PORTAL ========== */}
 
+      {/* ====================================================== */}
+      {/* 🔥 NUEVO: Modal de confirmación antes de enviar       */}
+      {/* ====================================================== */}
+      {renderModal(
+        showConfirmSendModal,
+        () => setShowConfirmSendModal(false),
+        <>
+          <div className="flex justify-center mb-4">
+            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-indigo-500/15 border-2 border-indigo-500/40">
+              <span className="text-3xl">❓</span>
+            </div>
+          </div>
+
+          <h3 className="text-xl font-bold text-white text-center mb-2">
+            Confirmar transferencia
+          </h3>
+
+          <p className="text-sm text-gray-300 text-center mb-5">
+            ¿Seguro que deseas transferir{" "}
+            <span className="text-indigo-400 font-semibold">{amount} XRP</span>{" "}
+            a la billetera
+          </p>
+
+          <div className="bg-white/5 border border-white/10 rounded-xl p-3 mb-6">
+            <p className="text-xs text-gray-400 mb-1">Dirección destino</p>
+            <p className="text-gray-200 text-xs font-mono break-all">
+              {destination.trim()}
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={executeSend}
+              className="flex-1 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 shadow-lg shadow-green-500/20"
+            >
+              Aceptar
+            </button>
+            <button
+              onClick={() => setShowConfirmSendModal(false)}
+              className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-medium hover:bg-white/10 transition-all duration-200"
+            >
+              Cancelar
+            </button>
+          </div>
+        </>,
+        "z-[80]",
+      )}
+
       {/* Modal: Dirección inválida */}
       {renderModal(
         showAddressError,
-        closeAllModals, // 👈 Al cerrar, limpia todo
+        closeAllModals,
         <>
           <div className="flex justify-center mb-5">
             <div className="flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30">
@@ -394,10 +479,10 @@ const SendComponent = ({
         "z-50",
       )}
 
-      {/* Modal: Congestión de red (con z-index superior) */}
+      {/* Modal: Congestión de red */}
       {renderModal(
         showCongestionModal,
-        closeAllModals, // 👈 Al cerrar, limpia todo
+        closeAllModals,
         <>
           <div className="flex justify-center mb-5">
             <div className="flex items-center justify-center w-20 h-20 rounded-full bg-yellow-500/15 border-2 border-yellow-500/40">
@@ -418,10 +503,10 @@ const SendComponent = ({
           </div>
           <div className="text-center">
             <h3 className="text-2xl font-bold text-white mb-2">
-              Red testnet congestionada
+              Red Devnet congestionada
             </h3>
             <p className="text-gray-400 text-sm mb-6">
-              La red XRP Ledger Testnet está experimentando una alta demanda en
+              La red XRP Ledger Devnet está experimentando una alta demanda en
               este momento.
             </p>
             <div className="bg-yellow-500/5 border border-yellow-500/10 rounded-xl p-4 mb-6">
@@ -434,7 +519,7 @@ const SendComponent = ({
               </p>
             </div>
             <button
-              onClick={closeAllModals} // 👈 Cierra todo al hacer clic
+              onClick={closeAllModals}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-semibold hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 shadow-lg shadow-yellow-500/20"
             >
               Entendido

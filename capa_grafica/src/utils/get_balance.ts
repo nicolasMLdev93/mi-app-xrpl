@@ -1,5 +1,5 @@
 import xrpl from "xrpl";
-import { XRPL_TESTNET } from "./config";
+import { XRPL_DEVNET } from "./config";
 
 // =========================================
 // Funcionalidad:
@@ -15,18 +15,18 @@ export const getBalance = async (address: string): Promise<number> => {
     throw new Error("Dirección XRPL inválida.");
   }
 
-  const client = new xrpl.Client(XRPL_TESTNET);
+  const client = new xrpl.Client(XRPL_DEVNET);
 
   try {
     // =========================================
-    // 2. CONECTAR A XRPL TESTNET
+    // 2. CONECTAR A XRPL DEXRPL_DEVNET
     // =========================================
 
     console.log("⏳ Consultando balance XRP...");
 
     await client.connect();
 
-    console.log("✅ Conectado a XRPL Testnet");
+    console.log("✅ Conectado a XRPL DEXRPL_DEVNET");
 
     // =========================================
     // 3. CONSULTAR ACCOUNT_INFO

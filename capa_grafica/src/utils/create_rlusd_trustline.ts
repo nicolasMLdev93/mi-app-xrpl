@@ -1,5 +1,5 @@
 import xrpl from "xrpl";
-import { RLUSD_ISSUER, RLUSD_CURRENCY, XRPL_TESTNET } from "./config";
+import { RLUSD_ISSUER, RLUSD_CURRENCY, XRPL_DEVNET } from "./config";
 
 type TrustLineResult = {
   success: boolean;
@@ -26,14 +26,14 @@ const createRLUSDTrustline = async (
     };
   }
 
-  const client = new xrpl.Client(XRPL_TESTNET);
+  const client = new xrpl.Client(XRPL_DEVNET);
 
   try {
-    console.log("⏳ Conectando a XRPL Testnet...");
+    console.log("⏳ Conectando a XRPL DEXRPL_DEVNET...");
 
     await client.connect();
 
-    console.log("✅ Conectado a XRPL Testnet");
+    console.log("✅ Conectado a XRPL DEXRPL_DEVNET");
 
     // -----------------------------------------
     // 2. Crear TrustSet

@@ -27,6 +27,7 @@ module.exports = {
       network: {
         type: Sequelize.STRING(50),
         allowNull: false,
+        defaultValue: 'devnet', 
       },
       name: {
         type: Sequelize.STRING(100),
@@ -41,6 +42,11 @@ module.exports = {
         allowNull: false,
         defaultValue: true,
       },
+      has_rlusd_trustline: { 
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: false,
@@ -53,7 +59,7 @@ module.exports = {
       },
     });
 
-    // Índices
+    // Índices para mejorar el rendimiento
     await queryInterface.addIndex('billeteras', ['user_id']);
     await queryInterface.addIndex('billeteras', ['address']);
   },

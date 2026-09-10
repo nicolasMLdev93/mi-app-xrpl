@@ -1,6 +1,6 @@
 import xrpl from "xrpl";
 import simulatedWallet from "../utils/simulated_wallet";
-import { XRPL_TESTNET } from "./config";
+import { XRPL_DEVNET } from "./config";
 
 type WalletInfo = {
   address: string;
@@ -8,7 +8,7 @@ type WalletInfo = {
 };
 
 const test_getpublickey = async (): Promise<WalletInfo> => {
-  const client = new xrpl.Client(XRPL_TESTNET);
+  const client = new xrpl.Client(XRPL_DEVNET);
 
   try {
     console.log("⏳ Conectando a Testnet...");

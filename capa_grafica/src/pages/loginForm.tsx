@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import App_logo from "../icons/app_logo";
 import Spinner from "../components/spinner";
 import { API_BASE_URL } from "../utils/config";
+import { FiEye, FiEyeOff } from "react-icons/fi"; // ← Importa los iconos
 
 const LoginForm = () => {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ const LoginForm = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // ← Estado para el ojo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,23 +27,19 @@ const LoginForm = () => {
 
       const data = await response.json();
 
-      // 🐞 Log para depuración
       console.log("📦 Respuesta del backend:", data);
 
       if (response.ok) {
-        // Guardar token y usuario en localStorage
         localStorage.setItem("token", data.data.token);
         localStorage.setItem("user", JSON.stringify(data.data.user));
 
         console.log("🔐 Token guardado:", localStorage.getItem("token"));
 
-        // Intentar redirección con React Router
         try {
           navigate("/home", { replace: true });
           console.log("✅ Redirección con navigate ejecutada");
         } catch (navError) {
           console.warn("⚠️ Falló navigate, usando fallback:", navError);
-          // Fallback: redirección forzada
           window.location.href = "/home";
         }
       } else {
@@ -105,15 +103,25 @@ const LoginForm = () => {
             >
               Contraseña
             </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full p-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-              required
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full p-3 pr-12 rounded-xl bg-white/10 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                tabIndex={-1}
+              >
+                {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+              </button>
+            </div>
           </div>
 
           <button

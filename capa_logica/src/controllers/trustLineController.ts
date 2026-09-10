@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { TrustLine, Billetera } from '../models';
 import { checkRLUSDTrustline } from '../utils/checkRLUSDTrustline';
-import { RLUSD_ISSUER, RLUSD_CURRENCY, XRPL_TESTNET } from '../config';
+import { RLUSD_ISSUER, RLUSD_CURRENCY, XRPL_DEVNET } from '../config';
 import * as xrpl from 'xrpl';
 
 const getParam = (param: string | string[]): string => {
@@ -39,6 +39,8 @@ export const obtenerTrustLines = async (req: Request, res: Response): Promise<vo
 // =========================================
 // CREAR TRUST LINE (MANUAL)
 // =========================================
+// Busca la función crearTrustLine y reemplaza su contenido por esto:
+
 export const crearTrustLine = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.id;
@@ -69,9 +71,15 @@ export const crearTrustLine = async (req: Request, res: Response): Promise<void>
       status: 'active',
     });
 
-    const hasTrustline = await checkRLUSDTrustline(wallet.address);
-    if (hasTrustline) {
-      await trustLine.update({ status: 'active' });
+    // ✅ CAMBIO 1: Envuelve esta llamada en try-catch para que no tumbe la creación
+    try {
+      const hasTrustline = await checkRLUSDTrustline(wallet.address);
+      if (hasTrustline) {
+        await trustLine.update({ status: 'active' });
+      }
+    } catch (blockchainError) {
+      // Solo logueamos el error, pero NO cancelamos la creación del Trust Line en DB
+      console.error('⚠️ Error al verificar en blockchain (se omite):', blockchainError);
     }
 
     res.status(201).json({
@@ -79,9 +87,15 @@ export const crearTrustLine = async (req: Request, res: Response): Promise<void>
       message: 'Trust Line creado exitosamente',
       data: trustLine,
     });
+
   } catch (error) {
-    console.error('Error al crear trust line:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    // ✅ CAMBIO 2: Muestra el error REAL en consola y devuélvelo al frontend
+    console.error('🔥 ERROR GRAVE en crearTrustLine:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error interno del servidor', 
+      details: error instanceof Error ? error.message : String(error) // Esto te dará la pista exacta
+    });
   }
 };
 
@@ -178,7 +192,7 @@ export const prepararCambioLimite = async (req: Request, res: Response): Promise
     }
 
     const walletAddress = trustLine.billetera.address;
-    const client = new xrpl.Client(XRPL_TESTNET);
+    const client = new xrpl.Client(XRPL_DEVNET);
     try {
       await client.connect();
 

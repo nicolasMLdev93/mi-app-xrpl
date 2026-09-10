@@ -18,5 +18,6 @@ export const config = {
 
 // XRPL Testnet constants
 export const XRPL_TESTNET = 'wss://s.altnet.rippletest.net:51233';
+export const XRPL_DEVNET = 'wss://s.devnet.rippletest.net:51233';
 export const RLUSD_ISSUER = 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV';
 export const RLUSD_CURRENCY = 'RLUSD';

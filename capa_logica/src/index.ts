@@ -21,7 +21,7 @@ if (config.nodeEnv === "development") {
 }
 
 // Rutas
-app.use("/api", apiRoutes);  // Ahora sí es un Router
+app.use("/api", apiRoutes);  
 
 // Iniciar servidor
 const { port } = config;

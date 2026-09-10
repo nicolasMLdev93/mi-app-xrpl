@@ -2,7 +2,6 @@
 import { useState } from "react";
 
 const SettingsComponent = () => {
-  const [darkMode, setDarkMode] = useState(true);
   const [notifications, setNotifications] = useState(true);
   const [network, setNetwork] = useState("testnet");
   const [isLoading, setIsLoading] = useState(false);

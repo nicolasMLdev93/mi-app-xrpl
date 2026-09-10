@@ -1,5 +1,5 @@
 import xrpl from "xrpl";
-import { XRPL_TESTNET } from "./config";
+import { XRPL_DEVNET } from "./config";
 
 type TransactionInput = {
   address: string;
@@ -93,7 +93,7 @@ const test_transaction = async ({
   // 6. CREAR CLIENTE XRPL
   // =========================================
 
-  const client = new xrpl.Client(XRPL_TESTNET);
+  const client = new xrpl.Client(XRPL_DEVNET);
 
   try {
     console.log("⏳ Conectando a XRPL Testnet...");

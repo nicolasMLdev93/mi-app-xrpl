@@ -1,5 +1,5 @@
 import xrpl from "xrpl";
-import { RLUSD_ISSUER, RLUSD_CURRENCY, XRPL_TESTNET } from "./config";
+import { RLUSD_ISSUER, RLUSD_CURRENCY, XRPL_DEVNET } from "./config";
 
 type TransactionInput = {
   address: string;
@@ -85,7 +85,7 @@ const test_rlusd_transaction = async ({
   // 5. CREAR CLIENTE XRPL
   // =========================================
 
-  const client = new xrpl.Client(XRPL_TESTNET);
+  const client = new xrpl.Client(XRPL_DEVNET);
 
   try {
     console.log("⏳ Conectando a XRPL Testnet...");

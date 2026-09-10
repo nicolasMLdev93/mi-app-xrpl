@@ -1,7 +1,7 @@
 // src/utils/getXamanWallets.ts
 import xrpl from "xrpl";
 import simulatedWallet from "./simulated_wallet";
-import { XRPL_TESTNET } from "../utils/config";
+import { XRPL_DEVNET } from "../utils/config";
 
 type XamanWallet = {
   address: string;
@@ -9,10 +9,10 @@ type XamanWallet = {
 };
 
 export const getXamanWallets = async (): Promise<XamanWallet[]> => {
-  const client = new xrpl.Client(XRPL_TESTNET);
+  const client = new xrpl.Client(XRPL_DEVNET);
 
   try {
-    console.log("⏳ Conectando a XRPL Testnet...");
+    console.log("⏳ Conectando a XRPL DEXRPL_DEVNET...");
     await client.connect();
     console.log("✅ Conectado.");
 
@@ -37,7 +37,7 @@ export const getXamanWallets = async (): Promise<XamanWallet[]> => {
   } finally {
     if (client.isConnected()) {
       await client.disconnect();
-      console.log("🔌 Desconectado de Testnet.");
+      console.log("🔌 Desconectado de DEXRPL_DEVNET.");
     }
   }
 };

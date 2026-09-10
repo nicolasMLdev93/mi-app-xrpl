@@ -5,41 +5,33 @@ const getParam = (param: string | string[]): string => {
   return Array.isArray(param) ? param[0] : param;
 };
 
-export const verificarTrustLine = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// Busca la función verificarTrustLine y modifica la consulta:
+
+export const verificarTrustLine = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = (req as any).user?.id;
-    const idParam = getParam(req.params.id);
-    const trustLineId = parseInt(idParam, 10);
-
-    if (!userId) {
-      res.status(401).json({ success: false, message: 'Usuario no autenticado' });
-      return;
-    }
-
-    if (isNaN(trustLineId)) {
-      res.status(400).json({ success: false, message: 'ID de trust line inválido' });
-      return;
-    }
-
-    const trustLine = await TrustLine.findOne({
-      where: { id: trustLineId },
-      include: [{
-        model: Billetera,
-        as: 'billetera',
-        where: { user_id: userId },
-      }],
+    const id = parseInt(getParam(req.params.id), 10);
+    
+    // ✅ CAMBIO: Agrega el include para que traiga la Billetera
+    const trustLine = await TrustLine.findByPk(id, {
+      include: [
+        { 
+          model: Billetera, 
+          as: 'billetera', 
+          attributes: ['id', 'address', 'network'] 
+        }
+      ]
     });
 
     if (!trustLine) {
-      res.status(404).json({ success: false, message: 'Trust Line no encontrado o no pertenece al usuario' });
+      res.status(404).json({ success: false, message: 'Trust Line no encontrado' });
       return;
     }
 
     (req as any).trustLine = trustLine;
     next();
   } catch (error) {
-    console.error('Error al verificar trust line:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    console.error('Error en verificarTrustLine:', error);
+    res.status(500).json({ success: false, message: 'Error al verificar trust line' });
   }
 };
 

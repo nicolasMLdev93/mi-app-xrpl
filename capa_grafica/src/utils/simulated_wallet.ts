@@ -14,7 +14,11 @@ class SimulatedWallet {
 
     // Si no hay, generar una nueva y guardarla
     this.wallet = xrpl.Wallet.generate();
-    sessionStorage.setItem("simulatedWalletSeed", this.wallet.seed);
+    const seed = this.wallet.seed;
+    if (seed === undefined) {
+      throw new Error("No se pudo obtener la semilla de la wallet.");
+    }
+    sessionStorage.setItem("simulatedWalletSeed", seed);
     console.log("🔐 Nueva wallet generada y guardada");
     return this.wallet.classicAddress;
   }

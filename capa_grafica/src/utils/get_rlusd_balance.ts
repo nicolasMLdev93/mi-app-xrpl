@@ -1,6 +1,6 @@
 import xrpl from "xrpl";
 
-import { RLUSD_ISSUER, RLUSD_CURRENCY, XRPL_TESTNET } from "./config";
+import { RLUSD_ISSUER, RLUSD_CURRENCY, XRPL_DEVNET } from "./config";
 
 export const getRLUSDBalance = async (address: string): Promise<number> => {
   // =========================================
@@ -13,7 +13,7 @@ export const getRLUSDBalance = async (address: string): Promise<number> => {
     return 0;
   }
 
-  const client = new xrpl.Client(XRPL_TESTNET);
+  const client = new xrpl.Client(XRPL_DEVNET);
 
   try {
     console.log("⏳ Consultando balance RLUSD...");
@@ -21,12 +21,12 @@ export const getRLUSDBalance = async (address: string): Promise<number> => {
     console.log("👛 Wallet:", address);
 
     // =========================================
-    // 2. CONECTAR A TESTNET
+    // 2. CONECTAR A DEXRPL_DEVNET
     // =========================================
 
     await client.connect();
 
-    console.log("✅ Conectado a XRPL Testnet");
+    console.log("✅ Conectado a XRPL DEXRPL_DEVNET");
 
     // =========================================
     // 3. CONSULTAR TRUST LINES
