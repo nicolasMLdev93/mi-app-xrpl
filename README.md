@@ -97,6 +97,12 @@ cd capa_logica
 npm run build
 ```
 
+## 🧪 Tests en backend
+```bash
+cd capa_logica
+npm test
+```
+
 ---
 
 ## 🗄️ Migraciones de base de datos
@@ -134,7 +140,7 @@ npm run migrate
 8. **Api de documentación**
 
 La documentación de las rutas y endpoints del backend está disponible en:
-
+```bash
 http://localhost:3000/api-docs/
-
+```
 
