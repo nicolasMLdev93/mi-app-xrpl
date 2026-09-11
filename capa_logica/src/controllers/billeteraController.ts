@@ -21,14 +21,13 @@ export const obtenerBilleteras = async (
       include: [{
         model: TrustLine,
         as: 'trustLines',
-        required: false, // Trae wallets aunque no tengan trust lines
+        required: false, 
       }],
       order: [["createdAt", "DESC"]],
     });
 
     console.log(`✅ ${billeteras.length} billeteras encontradas`);
     billeteras.forEach((b, index) => {
-      // 🔥 Usamos "as any" para evitar errores de TypeScript
       const trustLines = (b as any).trustLines || [];
       console.log(`Billetera ${index + 1}: ID ${b.id}, trustLines: ${trustLines.length}`);
       trustLines.forEach((tl: any) => {
