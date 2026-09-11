@@ -24,6 +24,7 @@ export const obtenerTransaccionesUsuario = async (
       include: [
         {
           model: Billetera,
+          as: "billetera",
           where: {
             user_id: userId,
           },

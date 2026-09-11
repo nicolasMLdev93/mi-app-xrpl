@@ -14,9 +14,10 @@ const sequelize = new Sequelize(
   dbConfig.password,
   {
     host: dbConfig.host,
-    port: (dbConfig as any).port || 3306, 
+    port: (dbConfig as any).port || 3306,
     dialect: dbConfig.dialect,
     logging: dbConfig.logging || false,
+    storage: (dbConfig as any).storage,
   }
 );
 
