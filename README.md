@@ -127,9 +127,14 @@ npm run migrate
    > ⚠️ Si se borra de forma manual dicha seed se creará otra billetera y se almacenará dicha seed en el  `sessionStorage`.
 
 7. **Cierre de sesión**
-   - Si cerrás sesión y volvés a ingresar con la **misma cuenta**, la seed permanece en el `sessionStorage`. Al presionar nuevamente **"Conectar con Xaman"**, no se creará una billetera nueva.
    - Si cerrás sesión y accedés con **otra cuenta**, la seed se elimina del `sessionStorage` de forma automática. Esto permite que la nueva cuenta pueda generar su propia billetera simulada.
 
    > ⚠️ Recordá: el sistema siempre usa la billetera simulada ubicada al tope, ya que es la que tiene la seed asociada. Si esa seed no está disponible, se mostrará un mensaje de error, ya que **es necesaria para firmar la transacción**. La aplicación es una simulación, en la vida real siempre obtiene la seed para poder firmar las transacciones desde XAMAN.
+
+8. **Api de documentación**
+
+La documentación de las rutas y endpoints del backend está disponible en:
+
+http://localhost:3000/api-docs/
 
 
